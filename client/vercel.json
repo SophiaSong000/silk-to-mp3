@@ -3,34 +3,14 @@
   "outputDirectory": "build",
   "installCommand": "npm install",
   "framework": "create-react-app",
-  "routes": [
+  "rewrites": [
     {
-      "src": "/manifest.json",
-      "dest": "/manifest.json"
+      "source": "/zh/(.*)",
+      "destination": "/index.html"
     },
     {
-      "src": "/favicon.ico",
-      "dest": "/favicon.ico"
-    },
-    {
-      "src": "/robots.txt",
-      "dest": "/robots.txt"
-    },
-    {
-      "src": "/locales/(.*)",
-      "dest": "/locales/$1"
-    },
-    {
-      "src": "/static/(.*)",
-      "dest": "/static/$1"
-    },
-    {
-      "src": "/zh/(.*)",
-      "dest": "/index.html"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/index.html"
+      "source": "/((?!static/|locales/|favicon\\.ico|robots\\.txt).*)",
+      "destination": "/index.html"
     }
   ]
 }
