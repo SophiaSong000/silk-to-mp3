@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#000000" />
+    <meta name="description" content="Convert WeChat voice files (silk format) to MP3 - 微信语音转换器" />
+    <meta name="keywords" content="WeChat, voice, converter, silk, MP3, 微信, 语音, 转换器" />
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://your-domain.com/" />
+    <meta property="og:title" content="WeChat Voice Converter - 微信语音转换器" />
+    <meta property="og:description" content="Convert WeChat voice files (silk format) to MP3 - 将微信语音文件转换为MP3格式" />
+    
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image" />
+    <meta property="twitter:url" content="https://your-domain.com/" />
+    <meta property="twitter:title" content="WeChat Voice Converter - 微信语音转换器" />
+    <meta property="twitter:description" content="Convert WeChat voice files (silk format) to MP3 - 将微信语音文件转换为MP3格式" />
+    
+    <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
+    <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
+    
+    <title>WeChat Voice Converter - 微信语音转换器</title>
+    
+    <!-- 语言检测和重定向脚本 -->
+    <script>
+      (function() {
+        // 检测浏览器语言并重定向（仅在首次访问时）
+        const path = window.location.pathname;
+        const search = window.location.search;
+        
+        // 如果已经在语言路径中，不做处理
+        if (path.startsWith('/zh/')) {
+          return;
+        }
+        
+        // 如果是根路径且没有语言偏好设置
+        if (path === '/' && !localStorage.getItem('preferred-language')) {
+          const browserLang = navigator.language || navigator.userLanguage;
+          const langCode = browserLang.split('-')[0];
+          
+          // 如果浏览器语言是中文，重定向到中文版
+          if (langCode === 'zh') {
+            window.location.href = '/zh/' + search;
+          }
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <div id="root"></div>
+  </body>
+</html>

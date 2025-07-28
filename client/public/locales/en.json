@@ -1,0 +1,293 @@
+{
+  "title": "WeChat Voice Converter",
+  "subtitle": "Convert WeChat voice files (silk format) to MP3, with optional merging of multiple files",
+  "modes": {
+    "single": "Single File Conversion",
+    "multiple": "Multiple File Merge"
+  },
+  "modeDescriptions": {
+    "single": "Each file will be converted to MP3 format individually, without merging. Suitable for processing each voice file separately.",
+    "multiple": "All files will be converted and merged into one MP3 file. Please name files in playback order (e.g., 01_xxx.silk, 02_xxx.silk), the system will automatically sort by filename numbers."
+  },
+  "dropzone": {
+    "text": "Drag and drop files here, or click to select files",
+    "supportedFormats": "Supported formats: .silk"
+  },
+  "fileList": {
+    "title": "Selected Files",
+    "count": "files"
+  },
+  "buttons": {
+    "convertSingle": "Convert to MP3",
+    "convertMultiple": "Merge and Convert to MP3",
+    "clearList": "Clear List",
+    "batchDownload": "Batch Download All Files (ZIP)",
+    "download": "Download MP3 File",
+    "remove": "Remove"
+  },
+  "status": {
+    "processing": "Processing...",
+    "conversionComplete": "Conversion Complete!",
+    "mergeComplete": "Merge Complete!",
+    "singleDescription": "Your files are ready for download",
+    "multipleDescription": "Your merged file is ready for download"
+  },
+  "messages": {
+    "filesAdded": "files added",
+    "fileRemoved": "File removed",
+    "listCleared": "File list cleared",
+    "downloadPreparing": "Preparing download...",
+    "batchDownloadComplete": "Batch download complete!",
+    "batchDownloadFailed": "Batch download failed, please try again",
+    "conversionSuccess": "File conversion successful!",
+    "conversionFailed": "File processing failed, please try again",
+    "noFilesSelected": "Please select files first",
+    "conversionError": "Conversion failed"
+  },
+  "errors": {
+    "uploadFailed": "File upload or processing failed, please try again",
+    "serverError": "Server error",
+    "noFiles": "No files uploaded",
+    "conversionFailed": "All conversion methods failed",
+    "fileNotFound": "Converted file does not exist or is empty"
+  },
+  "footer": {
+    "copyright": "© 2025 WeChat Voice Converter - Based on open source project silk-v3-decoder"
+  },
+  "language": {
+    "switch": "中文",
+    "current": "English"
+  },
+  "legal": {
+    "privacyPolicy": "Privacy Policy",
+    "termsOfService": "Terms of Service",
+    "disclaimer": "Disclaimer",
+    "contact": "Contact",
+    "agree": "I Agree",
+    "disagree": "Disagree",
+    "readAndAgree": "I have read and agree to the",
+    "and": "and",
+    "consentTitle": "Terms of Use Agreement",
+    "consentMessage": "Before using this service, please read and agree to our terms of use and privacy policy.",
+    "mustAgree": "You must agree to the terms to use this service",
+    "uploadConsent": "By uploading files, you agree to our",
+    "uploadConsentAnd": "and"
+  },
+  "privacy": {
+    "title": "Privacy Policy",
+    "lastUpdated": "Last updated: January 2025",
+    "dataCollection": "Data Collection",
+    "dataCollectionText": "We only collect the audio files you upload for conversion purposes. No personal information is collected or stored.",
+    "dataUsage": "Data Usage",
+    "dataUsageText": "Your uploaded files are used solely for format conversion from SILK to MP3. We do not analyze, store, or backup your files.",
+    "dataRetention": "Data Retention",
+    "dataRetentionText": "All uploaded files are automatically deleted within 24 hours after conversion. Most files are deleted immediately after successful conversion.",
+    "dataSecurity": "Data Security",
+    "dataSecurityText": "All file transfers use HTTPS encryption. Files are processed on secure servers and are not accessible to third parties.",
+    "userRights": "Your Rights",
+    "userRightsText": "You have the right to know how your data is processed. You can contact us if you have any questions about data handling.",
+    "contact": "Contact Us",
+    "contactText": "If you have any questions about this privacy policy, please contact us."
+  },
+  "terms": {
+    "title": "Terms of Service",
+    "lastUpdated": "Last updated: January 2025",
+    "acceptance": "Acceptance of Terms",
+    "acceptanceText": "By using this service, you agree to be bound by these terms of service.",
+    "serviceDescription": "Service Description",
+    "serviceDescriptionText": "This service converts WeChat voice files (SILK format) to MP3 format. The service is provided as-is for legitimate use only.",
+    "userResponsibilities": "User Responsibilities",
+    "userResponsibilitiesText": "You are solely responsible for the content you upload. You must have the legal right to process and convert the audio files you submit.",
+    "prohibitedUses": "Prohibited Uses",
+    "prohibitedUsesText": "You may not use this service for: (1) Processing copyrighted content without permission; (2) Illegal surveillance or wiretapping; (3) Any illegal or unauthorized activities.",
+    "serviceAvailability": "Service Availability",
+    "serviceAvailabilityText": "We strive to maintain service availability but do not guarantee uninterrupted access. The service may be temporarily unavailable for maintenance.",
+    "limitation": "Limitation of Liability",
+    "limitationText": "This service is provided 'as is' without warranties. We are not liable for any damages arising from the use of this service.",
+    "changes": "Changes to Terms",
+    "changesText": "We reserve the right to modify these terms at any time. Continued use of the service constitutes acceptance of modified terms."
+  },
+  "disclaimer": {
+    "title": "Disclaimer",
+    "lastUpdated": "Last updated: January 2025",
+    "legalUse": "Legal Use Only",
+    "legalUseText": "This tool is intended for legal use only. Users must ensure they have the right to process the audio files they upload.",
+    "noWarranty": "No Warranty",
+    "noWarrantyText": "This service is provided 'as is' without any warranties, express or implied. We do not guarantee the accuracy, reliability, or availability of the service.",
+    "userResponsibility": "User Responsibility",
+    "userResponsibilityText": "Users are solely responsible for the legality and appropriateness of the content they process. We do not monitor or review uploaded content.",
+    "prohibited": "Prohibited Activities",
+    "prohibitedText": "The following activities are strictly prohibited: unauthorized recording, wiretapping, processing copyrighted material without permission, and any illegal surveillance activities.",
+    "limitation": "Limitation of Liability",
+    "limitationText": "Under no circumstances shall we be liable for any direct, indirect, incidental, or consequential damages arising from the use of this service.",
+    "indemnification": "Indemnification",
+    "indemnificationText": "Users agree to indemnify and hold harmless the service provider from any claims, damages, or expenses arising from their use of the service."
+  },
+  "seo": {
+    "mainTitle": "Free WeChat Voice to MP3 Converter - Batch Convert Silk Format Online",
+    "subtitle": "Professional WeChat voice to MP3 converter supporting Silk format batch processing. Completely free, no installation required, privacy protected. 10 free conversions daily for everyday needs.",
+    "quickStart": "Start Converting Now",
+    "hero": {
+      "title": "What is Silk Format? Why Convert?",
+      "problem1": "WeChat voice messages are stored in Silk format, a proprietary audio codec developed by Tencent. While it works well within WeChat, Silk format files cannot be played in other audio players.",
+      "problem2": "When you need to save important WeChat voice messages to your computer, share them with friends, or play them on other devices, you need to convert Silk format to the universal MP3 format.",
+      "problem3": "Our tool specifically solves this problem, allowing you to easily convert WeChat voice files to standard MP3 format, compatible with all devices and players.",
+      "solutionTitle": "Professional Silk to MP3 Solution",
+      "solutionDesc": "Based on open-source silk-v3-decoder technology, providing high-quality audio conversion services. Supports single file and batch conversion, completely free to use, protecting your privacy and security.",
+      "keyword1Title": "WeChat Voice to MP3",
+      "keyword1Desc": "Specifically designed for WeChat voice message conversion needs, supporting .silk format files.",
+      "keyword2Title": "Free Online Tool",
+      "keyword2Desc": "No need to download or install any software, complete conversion in your browser, completely free to use.",
+      "keyword3Title": "Batch Conversion Feature",
+      "keyword3Desc": "Support uploading multiple voice files simultaneously, one-click batch conversion, greatly improving work efficiency.",
+      "keyword4Title": "Privacy Security Protection",
+      "keyword4Desc": "All files are automatically deleted within 24 hours after conversion, protecting your privacy and security."
+    },
+    "features": {
+      "title": "Tool Features & Advantages",
+      "free": {
+        "title": "Completely Free to Use",
+        "desc": "10 free voice message conversions daily, meeting everyday usage needs. No hidden fees, no account registration required."
+      },
+      "fast": {
+        "title": "Fast Conversion Processing",
+        "desc": "Using efficient conversion algorithms, typically completing single file conversion within seconds."
+      },
+      "secure": {
+        "title": "Privacy Security Protection",
+        "desc": "All files use HTTPS encrypted transmission, automatically deleted within 24 hours after conversion, never retaining user data."
+      },
+      "mobile": {
+        "title": "Mobile Device Friendly",
+        "desc": "Perfect support for phones and tablets, responsive design ensures good user experience on any device."
+      },
+      "quality": {
+        "title": "High-Quality Audio Output",
+        "desc": "Maintains original audio quality, outputs standard MP3 format, compatible with all audio players and devices."
+      },
+      "batch": {
+        "title": "Batch Processing Feature",
+        "desc": "Support uploading multiple voice files simultaneously, batch conversion and packaged download, greatly improving work efficiency."
+      }
+    },
+    "pricing": {
+      "title": "Flexible Usage Plans",
+      "freeDaily": "10 free voice message conversions daily, meeting most users' everyday needs",
+      "premiumPlan": "Premium users enjoy unlimited conversions, suitable for users with high-volume conversion needs",
+      "highlight": "Permanently maintain free quota, allowing every user long-term usage"
+    },
+    "tutorial": {
+      "title": "How to Use WeChat Voice to MP3 Tool",
+      "singleTab": "Single File Conversion",
+      "batchTab": "Batch Conversion",
+      "tryNow": "Try the Tool Now",
+      "single": {
+        "step1": {
+          "title": "Prepare WeChat Voice Files",
+          "desc": "Export voice files you need to convert from WeChat, usually in .silk or .amr format.",
+          "tip": "Tip: You can find voice files through WeChat PC version or mobile file manager."
+        },
+        "step2": {
+          "title": "Select Single File Conversion Mode",
+          "desc": "Choose \"Single File Conversion\" mode on the tool page, so each file will be converted individually."
+        },
+        "step3": {
+          "title": "Upload Voice Files",
+          "desc": "Click the upload area or drag files to the designated area, you can upload multiple files simultaneously."
+        },
+        "step4": {
+          "title": "Download Conversion Results",
+          "desc": "After conversion is complete, each file will have an independent download link, or you can batch download as a package.",
+          "tip": "Tip: Converted MP3 files can be played in any audio player."
+        }
+      },
+      "batch": {
+        "step1": {
+          "title": "Prepare Multiple Voice Files",
+          "desc": "Collect WeChat voice files that need to be merged, recommend renaming files in playback order.",
+          "tip": "Tip: Name files like 01_xxx.silk, 02_xxx.silk, the system will arrange them in numerical order."
+        },
+        "step2": {
+          "title": "Select Batch Conversion Mode",
+          "desc": "Choose \"Multiple File Merge\" mode on the tool page, all files will be merged into one MP3 file."
+        },
+        "step3": {
+          "title": "Upload All Voice Files",
+          "desc": "Upload all voice files that need to be merged at once, you can drag and multi-select."
+        },
+        "step4": {
+          "title": "Adjust File Order",
+          "desc": "If needed, you can adjust the playback order of files by dragging."
+        },
+        "step5": {
+          "title": "Download Merged Result",
+          "desc": "After conversion is complete, download the merged single MP3 file containing all voice content.",
+          "tip": "Tip: Merged files are suitable for creating voice recordings or long-form audio content."
+        }
+      }
+    },
+    "faq": {
+      "title": "Frequently Asked Questions",
+      "q1": {
+        "question": "What audio formats are supported?",
+        "answer": "<p>Our tool mainly supports WeChat voice formats:</p><ul><li><strong>.silk format</strong> - Main format for WeChat voice messages</li></ul><p>Output format is standard MP3 format, compatible with all devices and players.</p><div class='highlight'><strong>Note:</strong> Currently focused on SILK format conversion to ensure optimal conversion quality and compatibility.</div>"
+      },
+      "q2": {
+        "question": "How is the audio quality after conversion?",
+        "answer": "<p>We use professional audio conversion technology to ensure:</p><ul><li>Maintain original audio quality</li><li>Lossless conversion, no quality reduction</li><li>Output standard MP3 format with appropriate bitrate</li><li>Compatible with all mainstream audio players</li></ul><div class='highlight'><strong>Note:</strong> Final audio quality depends on the recording quality of the original WeChat voice.</div>"
+      },
+      "q3": {
+        "question": "Are there file size or quantity limits?",
+        "answer": "<p>Regarding usage limits:</p><ul><li><strong>Free users:</strong> Can convert 10 voice files daily</li><li><strong>Single file:</strong> Maximum support 50MB</li><li><strong>Batch conversion:</strong> Maximum 20 files per session</li><li><strong>Premium users:</strong> Unlimited usage</li></ul><p>These limits are sufficient to meet most users' daily needs.</p>"
+      },
+      "q4": {
+        "question": "How is file security guaranteed?",
+        "answer": "<p>We take user privacy and file security very seriously:</p><ul><li><strong>HTTPS encryption:</strong> All file transfers use SSL encryption</li><li><strong>Auto-deletion:</strong> Files are automatically deleted within 24 hours</li><li><strong>No human intervention:</strong> Conversion process is fully automated</li><li><strong>No personal info storage:</strong> We don't collect any user data</li></ul><div class='highlight'><strong>Promise:</strong> We will never retain, analyze, or share your audio files.</div>"
+      },
+      "q5": {
+        "question": "Why choose our tool?",
+        "answer": "<p>Compared to other tools, our advantages:</p><ul><li><strong>Professional:</strong> Specifically optimized for WeChat voice formats</li><li><strong>Easy to use:</strong> No installation required, use online</li><li><strong>Secure:</strong> Strict privacy protection measures</li><li><strong>Free:</strong> Permanently provide free quota</li><li><strong>Stable:</strong> Based on mature open-source technology</li></ul>"
+      },
+      "q6": {
+        "question": "How to get WeChat voice files?",
+        "answer": "<p>Methods to get WeChat voice files:</p><ul><li><strong>WeChat PC version:</strong> Right-click voice messages in chat history, select \"Save As\"</li><li><strong>Mobile:</strong> Find WeChat data directory through file manager</li><li><strong>WeChat backup:</strong> Export using official WeChat backup tools</li></ul><div class='highlight'><strong>Tip:</strong> Ensure you have the right to process these voice files, comply with relevant laws and regulations.</div>"
+      },
+      "q7": {
+        "question": "What to do if conversion fails?",
+        "answer": "<p>If you encounter conversion problems, please check:</p><ul><li><strong>File format:</strong> Confirm it's .silk or .amr format</li><li><strong>File integrity:</strong> Ensure the file is not corrupted</li><li><strong>Network connection:</strong> Maintain stable network connection</li><li><strong>Browser compatibility:</strong> Use modern browsers</li></ul><p>If the problem persists, please contact our technical support.</p>"
+      },
+      "q8": {
+        "question": "Do you support other audio format conversions?",
+        "answer": "<p>Currently we focus on WeChat voice format conversion:</p><ul><li>Main support: Silk → MP3</li><li>Future plans: May support more formats</li></ul><div class='highlight'><strong>Professional advice:</strong> For other audio formats, recommend using specialized audio conversion tools.</div>"
+      }
+    },
+    "cta": {
+      "title": "Start Converting Your WeChat Voice Now",
+      "subtitle": "Join thousands of users experiencing the most professional WeChat voice to MP3 tool",
+      "startNow": "Start Converting Now",
+      "learnMore": "Learn More Features",
+      "highlight1": {
+        "title": "Second-level Conversion",
+        "desc": "Efficient algorithms, fast processing"
+      },
+      "highlight2": {
+        "title": "Privacy Protection",
+        "desc": "24-hour auto-deletion"
+      },
+      "highlight3": {
+        "title": "Permanently Free",
+        "desc": "10 free conversions daily"
+      },
+      "highlight4": {
+        "title": "Globally Available",
+        "desc": "Multi-language interface support"
+      },
+      "stats": {
+        "dailyFree": "Daily free conversions",
+        "autoDelete": "Auto-deletion protection",
+        "privacy": "Privacy security guarantee"
+      },
+      "trustText": "Based on open-source technology, a trustworthy WeChat voice conversion solution"
+    }
+  }
+}

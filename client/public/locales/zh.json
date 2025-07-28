@@ -1,0 +1,293 @@
+{
+  "title": "微信语音转换器",
+  "subtitle": "将微信语音文件(silk格式)转换为MP3，并可选择合并多个文件",
+  "modes": {
+    "single": "单文件转换",
+    "multiple": "多文件合并"
+  },
+  "modeDescriptions": {
+    "single": "每个文件将被单独转换为MP3格式，不会合并。适合需要分别处理每个语音文件的情况。",
+    "multiple": "所有文件将被转换并合并为一个MP3文件。请在上传前按照播放顺序给文件命名（如：01_xxx.silk, 02_xxx.silk），系统将按文件名序号自动排序。"
+  },
+  "dropzone": {
+    "text": "拖放文件到此处，或点击选择文件",
+    "supportedFormats": "支持的格式: .silk"
+  },
+  "fileList": {
+    "title": "已选择的文件",
+    "count": "个文件"
+  },
+  "buttons": {
+    "convertSingle": "转换为MP3",
+    "convertMultiple": "合并并转换为MP3",
+    "clearList": "清空列表",
+    "batchDownload": "批量下载所有文件 (ZIP)",
+    "download": "下载MP3文件",
+    "remove": "移除"
+  },
+  "status": {
+    "processing": "处理中...",
+    "conversionComplete": "转换完成!",
+    "mergeComplete": "合并完成!",
+    "singleDescription": "您的文件已准备好下载",
+    "multipleDescription": "您的合并文件已准备好下载"
+  },
+  "messages": {
+    "filesAdded": "个文件已添加",
+    "fileRemoved": "文件已移除",
+    "listCleared": "文件列表已清空",
+    "downloadPreparing": "正在准备下载...",
+    "batchDownloadComplete": "批量下载完成！",
+    "batchDownloadFailed": "批量下载失败，请重试",
+    "conversionSuccess": "文件转换成功！",
+    "conversionFailed": "文件处理失败，请重试",
+    "noFilesSelected": "请先选择文件",
+    "conversionError": "转换失败"
+  },
+  "errors": {
+    "uploadFailed": "文件上传或处理失败，请重试",
+    "serverError": "服务器错误",
+    "noFiles": "没有上传文件",
+    "conversionFailed": "所有转换方法都失败",
+    "fileNotFound": "转换后的文件不存在或为空"
+  },
+  "footer": {
+    "copyright": "© 2025 微信语音转换器 - 基于开源项目 silk-v3-decoder"
+  },
+  "language": {
+    "switch": "English",
+    "current": "中文"
+  },
+  "legal": {
+    "privacyPolicy": "隐私政策",
+    "termsOfService": "使用条款",
+    "disclaimer": "免责声明",
+    "contact": "联系我们",
+    "agree": "同意",
+    "disagree": "不同意",
+    "readAndAgree": "我已阅读并同意",
+    "and": "和",
+    "consentTitle": "使用条款协议",
+    "consentMessage": "在使用本服务前，请阅读并同意我们的使用条款和隐私政策。",
+    "mustAgree": "您必须同意条款才能使用本服务",
+    "uploadConsent": "上传文件即表示您同意我们的",
+    "uploadConsentAnd": "和"
+  },
+  "privacy": {
+    "title": "隐私政策",
+    "lastUpdated": "最后更新：2025年1月",
+    "dataCollection": "数据收集",
+    "dataCollectionText": "我们仅收集您上传的用于转换的音频文件。不收集或存储任何个人信息。",
+    "dataUsage": "数据使用",
+    "dataUsageText": "您上传的文件仅用于从SILK格式转换为MP3格式。我们不会分析、存储或备份您的文件。",
+    "dataRetention": "数据保留",
+    "dataRetentionText": "所有上传的文件将在转换后24小时内自动删除。大多数文件在成功转换后立即删除。",
+    "dataSecurity": "数据安全",
+    "dataSecurityText": "所有文件传输均使用HTTPS加密。文件在安全服务器上处理，第三方无法访问。",
+    "userRights": "您的权利",
+    "userRightsText": "您有权了解您的数据如何被处理。如果您对数据处理有任何疑问，可以联系我们。",
+    "contact": "联系我们",
+    "contactText": "如果您对本隐私政策有任何疑问，请联系我们。"
+  },
+  "terms": {
+    "title": "使用条款",
+    "lastUpdated": "最后更新：2025年1月",
+    "acceptance": "条款接受",
+    "acceptanceText": "使用本服务即表示您同意受本使用条款约束。",
+    "serviceDescription": "服务描述",
+    "serviceDescriptionText": "本服务将微信语音文件（SILK格式）转换为MP3格式。服务按现状提供，仅供合法使用。",
+    "userResponsibilities": "用户责任",
+    "userResponsibilitiesText": "您对上传的内容承担全部责任。您必须拥有处理和转换所提交音频文件的合法权利。",
+    "prohibitedUses": "禁止用途",
+    "prohibitedUsesText": "您不得将本服务用于：(1) 未经许可处理受版权保护的内容；(2) 非法监听或窃听；(3) 任何非法或未经授权的活动。",
+    "serviceAvailability": "服务可用性",
+    "serviceAvailabilityText": "我们努力维护服务可用性，但不保证不间断访问。服务可能因维护而暂时不可用。",
+    "limitation": "责任限制",
+    "limitationText": "本服务按\"现状\"提供，不提供任何保证。我们不对使用本服务产生的任何损害承担责任。",
+    "changes": "条款变更",
+    "changesText": "我们保留随时修改这些条款的权利。继续使用服务即表示接受修改后的条款。"
+  },
+  "disclaimer": {
+    "title": "免责声明",
+    "lastUpdated": "最后更新：2025年1月",
+    "legalUse": "仅限合法使用",
+    "legalUseText": "本工具仅供合法使用。用户必须确保他们有权处理所上传的音频文件。",
+    "noWarranty": "无保证",
+    "noWarrantyText": "本服务按\"现状\"提供，不提供任何明示或暗示的保证。我们不保证服务的准确性、可靠性或可用性。",
+    "userResponsibility": "用户责任",
+    "userResponsibilityText": "用户对其处理内容的合法性和适当性承担全部责任。我们不监控或审查上传的内容。",
+    "prohibited": "禁止活动",
+    "prohibitedText": "严格禁止以下活动：未经授权的录音、窃听、未经许可处理受版权保护的材料，以及任何非法监听活动。",
+    "limitation": "责任限制",
+    "limitationText": "在任何情况下，我们均不对因使用本服务而产生的任何直接、间接、偶然或后果性损害承担责任。",
+    "indemnification": "赔偿",
+    "indemnificationText": "用户同意就其使用服务而产生的任何索赔、损害或费用，对服务提供商进行赔偿并使其免受损害。"
+  },
+  "seo": {
+    "mainTitle": "微信语音转MP3免费在线工具 - 批量转换Silk格式",
+    "subtitle": "专业的微信语音转MP3转换器，支持Silk格式批量处理，完全免费，无需安装，保护隐私安全。每日免费转换10条，满足日常使用需求。",
+    "quickStart": "立即开始转换",
+    "hero": {
+      "title": "什么是Silk格式？为什么需要转换？",
+      "problem1": "微信语音消息使用Silk格式存储，这是腾讯开发的专有音频编码格式。虽然在微信内部播放效果很好，但Silk格式文件无法在其他音频播放器中正常播放。",
+      "problem2": "当您需要将重要的微信语音消息保存到电脑、分享给朋友、或在其他设备上播放时，就需要将Silk格式转换为通用的MP3格式。",
+      "problem3": "我们的工具专门解决这个问题，让您轻松将微信语音文件转换为标准MP3格式，兼容所有设备和播放器。",
+      "solutionTitle": "专业的Silk转MP3解决方案",
+      "solutionDesc": "基于开源silk-v3-decoder技术，提供高质量的音频转换服务。支持单文件和批量转换，完全免费使用，保护您的隐私安全。",
+      "keyword1Title": "微信语音转MP3",
+      "keyword1Desc": "专门针对微信语音消息的转换需求，支持.silk格式文件。",
+      "keyword2Title": "在线免费工具",
+      "keyword2Desc": "无需下载安装任何软件，在浏览器中即可完成转换，完全免费使用。",
+      "keyword3Title": "批量转换功能",
+      "keyword3Desc": "支持同时上传多个语音文件，一键批量转换，大大提高工作效率。",
+      "keyword4Title": "隐私安全保护",
+      "keyword4Desc": "所有文件在转换完成后24小时内自动删除，保护您的隐私安全。"
+    },
+    "features": {
+      "title": "工具特色与优势",
+      "free": {
+        "title": "完全免费使用",
+        "desc": "每日免费转换10条语音消息，满足日常使用需求。无隐藏费用，无需注册账号。"
+      },
+      "fast": {
+        "title": "快速转换处理",
+        "desc": "采用高效的转换算法，通常几秒钟内即可完成单个文件的转换处理。"
+      },
+      "secure": {
+        "title": "隐私安全保护",
+        "desc": "所有文件使用HTTPS加密传输，转换完成后24小时内自动删除，绝不保留用户数据。"
+      },
+      "mobile": {
+        "title": "移动设备友好",
+        "desc": "完美支持手机和平板电脑，响应式设计确保在任何设备上都有良好的使用体验。"
+      },
+      "quality": {
+        "title": "高质量音频输出",
+        "desc": "保持原始音频质量，输出标准MP3格式，兼容所有音频播放器和设备。"
+      },
+      "batch": {
+        "title": "批量处理功能",
+        "desc": "支持同时上传多个语音文件，批量转换并打包下载，大大提高工作效率。"
+      }
+    },
+    "pricing": {
+      "title": "灵活的使用方案",
+      "freeDaily": "每日免费转换10条语音消息，满足大多数用户的日常需求",
+      "premiumPlan": "付费用户享受无限制转换，适合有大量转换需求的用户",
+      "highlight": "永久保持免费额度，让每个用户都能长期使用"
+    },
+    "tutorial": {
+      "title": "如何使用微信语音转MP3工具",
+      "singleTab": "单文件转换",
+      "batchTab": "批量转换",
+      "tryNow": "立即试用工具",
+      "single": {
+        "step1": {
+          "title": "准备微信语音文件",
+          "desc": "从微信中导出需要转换的语音文件，通常是.silk或.amr格式。",
+          "tip": "提示：可以通过微信PC版或手机文件管理器找到语音文件。"
+        },
+        "step2": {
+          "title": "选择单文件转换模式",
+          "desc": "在工具页面选择\"单文件转换\"模式，这样每个文件会被单独转换。"
+        },
+        "step3": {
+          "title": "上传语音文件",
+          "desc": "点击上传区域或拖拽文件到指定区域，可以同时上传多个文件。"
+        },
+        "step4": {
+          "title": "下载转换结果",
+          "desc": "转换完成后，每个文件都会有独立的下载链接，也可以批量打包下载。",
+          "tip": "提示：转换后的MP3文件可以在任何音频播放器中播放。"
+        }
+      },
+      "batch": {
+        "step1": {
+          "title": "准备多个语音文件",
+          "desc": "收集需要合并的微信语音文件，建议按播放顺序重命名文件。",
+          "tip": "提示：文件命名如01_xxx.silk, 02_xxx.silk，系统会按数字顺序排列。"
+        },
+        "step2": {
+          "title": "选择批量转换模式",
+          "desc": "在工具页面选择\"多文件合并\"模式，所有文件将被合并为一个MP3文件。"
+        },
+        "step3": {
+          "title": "上传所有语音文件",
+          "desc": "一次性上传所有需要合并的语音文件，可以拖拽多选。"
+        },
+        "step4": {
+          "title": "调整文件顺序",
+          "desc": "如果需要，可以通过拖拽调整文件的播放顺序。"
+        },
+        "step5": {
+          "title": "下载合并结果",
+          "desc": "转换完成后，下载合并后的单个MP3文件，包含所有语音内容。",
+          "tip": "提示：合并后的文件适合制作语音记录或长篇音频内容。"
+        }
+      }
+    },
+    "faq": {
+      "title": "常见问题解答",
+      "q1": {
+        "question": "支持哪些音频格式？",
+        "answer": "<p>我们的工具主要支持微信语音格式：</p><ul><li><strong>.silk格式</strong> - 微信语音消息的主要格式</li></ul><p>输出格式为标准的MP3格式，兼容所有设备和播放器。</p><div class='highlight'><strong>注意：</strong>目前专注于SILK格式转换，确保最佳的转换质量和兼容性。</div>"
+      },
+      "q2": {
+        "question": "转换后的音频质量如何？",
+        "answer": "<p>我们采用专业的音频转换技术，确保：</p><ul><li>保持原始音频的质量</li><li>无损转换，不会降低音质</li><li>输出标准MP3格式，码率适中</li><li>兼容所有主流音频播放器</li></ul><div class='highlight'><strong>注意：</strong>最终音质取决于原始微信语音的录制质量。</div>"
+      },
+      "q3": {
+        "question": "有文件大小或数量限制吗？",
+        "answer": "<p>关于使用限制：</p><ul><li><strong>免费用户：</strong>每日可转换10个语音文件</li><li><strong>单个文件：</strong>最大支持50MB</li><li><strong>批量转换：</strong>单次最多20个文件</li><li><strong>付费用户：</strong>无限制使用</li></ul><p>这些限制足以满足大多数用户的日常需求。</p>"
+      },
+      "q4": {
+        "question": "文件安全性如何保障？",
+        "answer": "<p>我们非常重视用户隐私和文件安全：</p><ul><li><strong>HTTPS加密：</strong>所有文件传输都使用SSL加密</li><li><strong>自动删除：</strong>文件在24小时内自动删除</li><li><strong>无人工干预：</strong>转换过程完全自动化</li><li><strong>不存储个人信息：</strong>不收集任何用户数据</li></ul><div class='highlight'><strong>承诺：</strong>我们绝不会保留、分析或分享您的音频文件。</div>"
+      },
+      "q5": {
+        "question": "为什么选择我们的工具？",
+        "answer": "<p>相比其他工具，我们的优势：</p><ul><li><strong>专业性：</strong>专门针对微信语音格式优化</li><li><strong>易用性：</strong>无需安装，在线即用</li><li><strong>安全性：</strong>严格的隐私保护措施</li><li><strong>免费性：</strong>永久提供免费额度</li><li><strong>稳定性：</strong>基于成熟的开源技术</li></ul>"
+      },
+      "q6": {
+        "question": "如何获取微信语音文件？",
+        "answer": "<p>获取微信语音文件的方法：</p><ul><li><strong>微信PC版：</strong>在聊天记录中右键语音消息，选择\"另存为\"</li><li><strong>手机端：</strong>通过文件管理器找到微信数据目录</li><li><strong>微信备份：</strong>使用微信官方备份工具导出</li></ul><div class='highlight'><strong>提示：</strong>确保您有权处理这些语音文件，遵守相关法律法规。</div>"
+      },
+      "q7": {
+        "question": "转换失败怎么办？",
+        "answer": "<p>如果遇到转换问题，请检查：</p><ul><li><strong>文件格式：</strong>确认是.silk或.amr格式</li><li><strong>文件完整性：</strong>确保文件没有损坏</li><li><strong>网络连接：</strong>保持稳定的网络连接</li><li><strong>浏览器兼容：</strong>使用现代浏览器</li></ul><p>如果问题持续存在，请联系我们的技术支持。</p>"
+      },
+      "q8": {
+        "question": "是否支持其他音频格式转换？",
+        "answer": "<p>目前我们专注于微信语音格式的转换：</p><ul><li>主要支持：Silk → MP3</li><li>未来计划：可能会支持更多格式</li></ul><div class='highlight'><strong>专业建议：</strong>对于其他音频格式，建议使用专门的音频转换工具。</div>"
+      }
+    },
+    "cta": {
+      "title": "立即开始转换您的微信语音",
+      "subtitle": "加入数千名用户，体验最专业的微信语音转MP3工具",
+      "startNow": "立即开始转换",
+      "learnMore": "了解更多功能",
+      "highlight1": {
+        "title": "秒级转换",
+        "desc": "高效算法，快速处理"
+      },
+      "highlight2": {
+        "title": "隐私保护",
+        "desc": "24小时自动删除"
+      },
+      "highlight3": {
+        "title": "永久免费",
+        "desc": "每日10条免费额度"
+      },
+      "highlight4": {
+        "title": "全球可用",
+        "desc": "支持多语言界面"
+      },
+      "stats": {
+        "dailyFree": "每日免费转换",
+        "autoDelete": "自动删除保护",
+        "privacy": "隐私安全保障"
+      },
+      "trustText": "基于开源技术，值得信赖的微信语音转换解决方案"
+    }
+  }
+}

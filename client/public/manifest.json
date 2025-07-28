@@ -1,0 +1,16 @@
+{
+  "short_name": "Voice Converter",
+  "name": "WeChat Voice Converter - 微信语音转换器",
+  "icons": [
+    {
+      "src": "favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#000000",
+  "background_color": "#ffffff",
+  "description": "Convert WeChat voice files (silk format) to MP3 - 将微信语音文件转换为MP3格式"
+}

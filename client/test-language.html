@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>语言切换测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .url-display {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 3px;
+            font-family: monospace;
+            margin: 10px 0;
+        }
+        button {
+            background: #0088ff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0077ee;
+        }
+    </style>
+</head>
+<body>
+    <h1>语言切换功能测试</h1>
+    
+    <div class="test-section">
+        <h2>当前状态</h2>
+        <div>当前URL: <span class="url-display" id="currentUrl"></span></div>
+        <div>检测到的语言: <span id="detectedLang"></span></div>
+        <div>应该显示的语言: <span id="shouldShowLang"></span></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>测试链接</h2>
+        <button onclick="testUrl('/')">测试英文版 (/)</button>
+        <button onclick="testUrl('/zh/')">测试中文版 (/zh/)</button>
+        <button onclick="testUrl('/zh')">测试中文版 (/zh)</button>
+    </div>
+    
+    <div class="test-section">
+        <h2>语言切换测试</h2>
+        <button onclick="switchToEnglish()">切换到英文</button>
+        <button onclick="switchToChinese()">切换到中文</button>
+    </div>
+    
+    <div class="test-section">
+        <h2>调试信息</h2>
+        <div id="debugInfo"></div>
+    </div>
+
+    <script>
+        // 复制语言检测逻辑
+        const SUPPORTED_LANGUAGES = {
+            en: 'English',
+            zh: '中文'
+        };
+        const DEFAULT_LANGUAGE = 'en';
+        
+        function getLanguageFromPath(pathname) {
+            console.log('getLanguageFromPath - 输入路径:', pathname);
+            
+            const cleanPath = pathname.replace(/^\/+|\/+$/g, '');
+            const pathSegments = cleanPath ? cleanPath.split('/') : [];
+            
+            console.log('getLanguageFromPath - 清理后的路径:', cleanPath);
+            console.log('getLanguageFromPath - 路径段:', pathSegments);
+            
+            const firstSegment = pathSegments[0];
+            console.log('getLanguageFromPath - 第一段:', firstSegment);
+            
+            if (firstSegment && SUPPORTED_LANGUAGES[firstSegment]) {
+                console.log('getLanguageFromPath - 找到支持的语言:', firstSegment);
+                return firstSegment;
+            }
+            
+            console.log('getLanguageFromPath - 使用默认语言:', DEFAULT_LANGUAGE);
+            return DEFAULT_LANGUAGE;
+        }
+        
+        function getCurrentLanguage() {
+            const currentPath = window.location.pathname;
+            console.log('getCurrentLanguage - 当前路径:', currentPath);
+            
+            const pathLang = getLanguageFromPath(currentPath);
+            console.log('getCurrentLanguage - URL路径语言:', pathLang);
+            
+            if (pathLang !== DEFAULT_LANGUAGE && SUPPORTED_LANGUAGES[pathLang]) {
+                console.log('getCurrentLanguage - 使用URL路径语言:', pathLang);
+                return pathLang;
+            }
+            
+            if (pathLang === DEFAULT_LANGUAGE) {
+                const savedLang = localStorage.getItem('preferred-language');
+                if (savedLang && SUPPORTED_LANGUAGES[savedLang] && savedLang !== DEFAULT_LANGUAGE) {
+                    console.log('getCurrentLanguage - 有保存的语言偏好但URL是默认语言，使用URL语言:', pathLang);
+                    return pathLang;
+                }
+                
+                console.log('getCurrentLanguage - 使用URL路径语言（默认）:', pathLang);
+                return pathLang;
+            }
+            
+            return DEFAULT_LANGUAGE;
+        }
+        
+        function switchLanguageUrl(currentLang, targetLang) {
+            const currentPath = window.location.pathname;
+            const currentSearch = window.location.search;
+            
+            console.log('switchLanguageUrl - 当前语言:', currentLang, '目标语言:', targetLang);
+            console.log('switchLanguageUrl - 当前路径:', currentPath);
+            
+            let newPath;
+            
+            if (currentLang === DEFAULT_LANGUAGE) {
+                if (targetLang === DEFAULT_LANGUAGE) {
+                    newPath = currentPath;
+                } else {
+                    newPath = currentPath === '/' ? `/${targetLang}/` : `/${targetLang}${currentPath}`;
+                }
+            } else {
+                const pathWithoutLang = currentPath.replace(new RegExp(`^/${currentLang}/?`), '/');
+                console.log('switchLanguageUrl - 移除语言后的路径:', pathWithoutLang);
+                
+                if (targetLang === DEFAULT_LANGUAGE) {
+                    newPath = pathWithoutLang;
+                } else {
+                    newPath = pathWithoutLang === '/' ? `/${targetLang}/` : `/${targetLang}${pathWithoutLang}`;
+                }
+            }
+            
+            console.log('switchLanguageUrl - 新路径:', newPath);
+            return newPath + currentSearch;
+        }
+        
+        function updateStatus() {
+            const currentUrl = window.location.href;
+            const detectedLang = getCurrentLanguage();
+            const shouldShowLang = SUPPORTED_LANGUAGES[detectedLang];
+            
+            document.getElementById('currentUrl').textContent = currentUrl;
+            document.getElementById('detectedLang').textContent = detectedLang;
+            document.getElementById('shouldShowLang').textContent = shouldShowLang;
+            
+            // 更新调试信息
+            const debugInfo = document.getElementById('debugInfo');
+            debugInfo.innerHTML = `
+                <strong>路径分析:</strong><br>
+                pathname: ${window.location.pathname}<br>
+                getLanguageFromPath结果: ${getLanguageFromPath(window.location.pathname)}<br>
+                localStorage语言偏好: ${localStorage.getItem('preferred-language') || '无'}<br>
+                最终语言: ${detectedLang}
+            `;
+        }
+        
+        function testUrl(url) {
+            window.history.pushState(null, '', url);
+            updateStatus();
+        }
+        
+        function switchToEnglish() {
+            const currentLang = getCurrentLanguage();
+            const newUrl = switchLanguageUrl(currentLang, 'en');
+            window.history.pushState(null, '', newUrl);
+            localStorage.setItem('preferred-language', 'en');
+            updateStatus();
+        }
+        
+        function switchToChinese() {
+            const currentLang = getCurrentLanguage();
+            const newUrl = switchLanguageUrl(currentLang, 'zh');
+            window.history.pushState(null, '', newUrl);
+            localStorage.setItem('preferred-language', 'zh');
+            updateStatus();
+        }
+        
+        // 初始化
+        updateStatus();
+        
+        // 监听URL变化
+        window.addEventListener('popstate', updateStatus);
+    </script>
+</body>
+</html>

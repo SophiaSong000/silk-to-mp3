@@ -1,0 +1,27 @@
+﻿{
+  "name": "silk-converter-server",
+  "version": "1.0.0",
+  "description": "微信语音转换器后端服务",
+  "main": "server-fixed.js",
+  "scripts": {
+    "start": "node server-fixed.js",
+    "dev": "nodemon server-fixed.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": ["silk", "converter", "wechat", "voice", "mp3"],
+  "author": "Your Name",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "multer": "^1.4.5-lts.1",
+    "cors": "^2.8.5",
+    "fs-extra": "^11.1.1",
+    "fluent-ffmpeg": "^2.1.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}

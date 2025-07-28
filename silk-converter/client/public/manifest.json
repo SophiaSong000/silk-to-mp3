@@ -1,0 +1,9 @@
+﻿{
+  "short_name": "微信语音转换器",
+  "name": "微信语音转换器 - Silk转MP3",
+  "icons": [],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#000000",
+  "background_color": "#ffffff"
+}
