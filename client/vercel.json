@@ -17,6 +17,10 @@
       "dest": "/robots.txt"
     },
     {
+      "src": "/locales/(.*)",
+      "dest": "/locales/$1"
+    },
+    {
       "src": "/static/(.*)",
       "dest": "/static/$1"
     },
