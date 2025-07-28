@@ -3,13 +3,24 @@
   "outputDirectory": "build",
   "installCommand": "npm install",
   "framework": "create-react-app",
+  "headers": [
+    {
+      "source": "/manifest.json",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/json"
+        }
+      ]
+    }
+  ],
   "rewrites": [
     {
       "source": "/zh/(.*)",
       "destination": "/index.html"
     },
     {
-      "source": "/((?!\\.|api|_next|static).*)",
+      "source": "/((?!manifest\\.json|favicon\\.ico|robots\\.txt|static|api|_next).*)",
       "destination": "/index.html"
     }
   ]
