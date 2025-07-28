@@ -403,7 +403,7 @@ function App({ onShowPrivacy, onShowTerms, onShowDisclaimer }) {
   const [mode, setMode] = useState('single'); // 'single' 或 'multiple'
 
   // API基础URL配置 - 移到组件顶部
-  const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+  const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://silk-converter-api.onrender.com';
 
   // 检测移动设备
   const [isMobile, setIsMobile] = useState(false);
