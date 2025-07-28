@@ -25,30 +25,7 @@
     
     <title>WeChat Voice Converter - 微信语音转换器</title>
     
-    <!-- 语言检测和重定向脚本 -->
-    <script>
-      (function() {
-        // 检测浏览器语言并重定向（仅在首次访问时）
-        const path = window.location.pathname;
-        const search = window.location.search;
-        
-        // 如果已经在语言路径中，不做处理
-        if (path.startsWith('/zh/')) {
-          return;
-        }
-        
-        // 如果是根路径且没有语言偏好设置
-        if (path === '/' && !localStorage.getItem('preferred-language')) {
-          const browserLang = navigator.language || navigator.userLanguage;
-          const langCode = browserLang.split('-')[0];
-          
-          // 如果浏览器语言是中文，重定向到中文版
-          if (langCode === 'zh') {
-            window.location.href = '/zh/' + search;
-          }
-        }
-      })();
-    </script>
+    <!-- 语言检测脚本已移除，默认显示英文版 -->
   </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>

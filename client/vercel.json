@@ -9,7 +9,7 @@
       "destination": "/index.html"
     },
     {
-      "source": "/((?!api|_next|static|favicon.ico|manifest.json|robots.txt).*)",
+      "source": "/((?!\\.|api|_next|static).*)",
       "destination": "/index.html"
     }
   ]
