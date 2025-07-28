@@ -5,6 +5,14 @@
   "framework": "create-react-app",
   "rewrites": [
     {
+      "source": "/zh/static/(.*)",
+      "destination": "/static/$1"
+    },
+    {
+      "source": "/zh/locales/(.*)",
+      "destination": "/locales/$1"
+    },
+    {
       "source": "/zh/(.*)",
       "destination": "/index.html"
     },
