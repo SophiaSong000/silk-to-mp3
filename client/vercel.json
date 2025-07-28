@@ -1,7 +1,15 @@
 {
+  "buildCommand": "npm run build",
+  "outputDirectory": "build",
+  "installCommand": "npm install",
+  "framework": "create-react-app",
   "rewrites": [
     {
-      "source": "/((?!.*\\.).*)",
+      "source": "/zh/(.*)",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/((?!api|_next|static|favicon.ico|manifest.json|robots.txt).*)",
       "destination": "/index.html"
     }
   ]
