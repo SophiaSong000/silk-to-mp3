@@ -2,10 +2,10 @@
   "name": "silk-converter",
   "version": "1.0.0",
   "description": "微信语音转换器 - 将silk格式转换为MP3",
-  "main": "server/server-fixed.js",
+  "main": "server/server-production.js",
   "scripts": {
-    "start": "cd server && node server-fixed.js",
-    "dev": "cd server && nodemon server-fixed.js",
+    "start": "cd server && node server-production.js",
+    "dev": "cd server && nodemon server-production.js",
     "client": "cd client && npm start",
     "client:build": "cd client && npm run build",
     "install-client": "cd client && npm install",
