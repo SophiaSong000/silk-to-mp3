@@ -5,9 +5,10 @@ const path = require('path');
 const fs = require('fs-extra');
 const { exec, execSync } = require('child_process');
 const ffmpeg = require('fluent-ffmpeg');
+const silk = require('silk-wasm');
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 
 // 生产环境配置
 const isProduction = process.env.NODE_ENV === 'production';
@@ -75,6 +76,34 @@ const upload = multer({
 });
 
 // 工具路径检测函数
+function getSilk2Mp3Path() {
+  // 优先检查当前目录的silk2mp3.exe
+  const localSilk2Mp3 = path.join(__dirname, 'silk2mp3.exe');
+  if (fs.existsSync(localSilk2Mp3)) {
+    console.log('使用本地silk2mp3:', localSilk2Mp3);
+    return localSilk2Mp3;
+  }
+  
+  // 检查系统PATH中的silk2mp3
+  try {
+    const whichOutput = execSync('which silk2mp3 2>/dev/null || where silk2mp3 2>nul', { 
+      encoding: 'utf8', 
+      timeout: 5000 
+    });
+    if (whichOutput && whichOutput.trim()) {
+      const foundPath = whichOutput.trim().split('\n')[0];
+      if (foundPath && !foundPath.includes('�') && fs.existsSync(foundPath)) {
+        console.log('使用系统PATH中的silk2mp3:', foundPath);
+        return foundPath;
+      }
+    }
+  } catch (e) {
+    console.log('silk2mp3不在PATH中，使用默认路径');
+  }
+  
+  return 'silk2mp3';
+}
+
 function getSilkDecoderPath() {
   // 生产环境优先检查当前目录
   const paths = [
@@ -208,10 +237,10 @@ app.post('/api/upload', (req, res, next) => {
       let success = false;
       let error = null;
       
-      // 方法1: 使用silk_v3_decoder直接转换为PCM，然后用ffmpeg转换为MP3
+      // 方法1: 使用silk-wasm (Node.js 纯 JavaScript 实现)
       try {
-        console.log('尝试方法1: silk_v3_decoder + ffmpeg');
-        await convertSilkToPcmToMp3(inputFile, outputFile);
+        console.log('尝试方法1: silk-wasm (JavaScript实现)');
+        await convertWithSilkWasm(inputFile, outputFile);
         success = true;
         console.log('方法1转换成功');
       } catch (err) {
@@ -219,11 +248,11 @@ app.post('/api/upload', (req, res, next) => {
         error = err;
       }
       
-      // 方法2: 使用silk_v3_decoder转换为WAV，然后用ffmpeg转换为MP3
+      // 方法2: 使用silk2mp3直接转换
       if (!success) {
         try {
-          console.log('尝试方法2: silk_v3_decoder -d + ffmpeg');
-          await convertSilkToWavToMp3(inputFile, outputFile);
+          console.log('尝试方法2: silk2mp3直接转换');
+          await convertWithSilk2Mp3(inputFile, outputFile);
           success = true;
           console.log('方法2转换成功');
         } catch (err) {
@@ -232,15 +261,41 @@ app.post('/api/upload', (req, res, next) => {
         }
       }
       
-      // 方法3: 直接使用ffmpeg转换
+      // 方法3: 使用silk_v3_decoder直接转换为PCM，然后用ffmpeg转换为MP3
       if (!success) {
         try {
-          console.log('尝试方法3: 直接使用ffmpeg');
-          await convertWithFfmpegDirect(inputFile, outputFile);
+          console.log('尝试方法3: silk_v3_decoder + ffmpeg');
+          await convertSilkToPcmToMp3(inputFile, outputFile);
           success = true;
           console.log('方法3转换成功');
         } catch (err) {
           console.error('方法3失败:', err.message);
+          error = err;
+        }
+      }
+      
+      // 方法4: 使用silk_v3_decoder转换为WAV，然后用ffmpeg转换为MP3
+      if (!success) {
+        try {
+          console.log('尝试方法4: silk_v3_decoder -d + ffmpeg');
+          await convertSilkToWavToMp3(inputFile, outputFile);
+          success = true;
+          console.log('方法4转换成功');
+        } catch (err) {
+          console.error('方法4失败:', err.message);
+          error = err;
+        }
+      }
+      
+      // 方法5: 直接使用ffmpeg转换
+      if (!success) {
+        try {
+          console.log('尝试方法5: 直接使用ffmpeg');
+          await convertWithFfmpegDirect(inputFile, outputFile);
+          success = true;
+          console.log('方法5转换成功');
+        } catch (err) {
+          console.error('方法5失败:', err.message);
           error = err;
         }
       }
@@ -393,20 +448,32 @@ app.post('/api/upload-multiple', upload.array('files', 50), async (req, res) => 
       let success = false;
       
       try {
-        await convertSilkToPcmToMp3(inputFile, outputFile);
+        await convertWithSilkWasm(inputFile, outputFile);
         success = true;
       } catch (err) {
         console.error('方法1失败:', err.message);
         try {
-          await convertSilkToWavToMp3(inputFile, outputFile);
+          await convertWithSilk2Mp3(inputFile, outputFile);
           success = true;
         } catch (err2) {
           console.error('方法2失败:', err2.message);
           try {
-            await convertWithFfmpegDirect(inputFile, outputFile);
+            await convertSilkToPcmToMp3(inputFile, outputFile);
             success = true;
           } catch (err3) {
             console.error('方法3失败:', err3.message);
+            try {
+              await convertSilkToWavToMp3(inputFile, outputFile);
+              success = true;
+            } catch (err4) {
+              console.error('方法4失败:', err4.message);
+              try {
+                await convertWithFfmpegDirect(inputFile, outputFile);
+                success = true;
+              } catch (err5) {
+                console.error('方法5失败:', err5.message);
+              }
+            }
           }
         }
       }
@@ -534,6 +601,147 @@ app.get('/api/download/:filename', (req, res) => {
 });
 
 // 转换函数（简化版，包含核心逻辑）
+// 方法0: 使用 silk-wasm (Node.js 纯 JavaScript 实现)
+function convertWithSilkWasm(inputFile, outputFile) {
+  return new Promise(async (resolve, reject) => {
+    const timeoutId = setTimeout(() => {
+      reject(new Error('命令执行超时'));
+    }, COMMAND_TIMEOUT);
+    
+    try {
+      if (!fs.existsSync(inputFile)) {
+        return reject(new Error(`输入文件不存在: ${inputFile}`));
+      }
+      
+      const stats = fs.statSync(inputFile);
+      if (stats.size === 0) {
+        return reject(new Error(`输入文件为空: ${inputFile}`));
+      }
+      
+      console.log(`使用silk-wasm转换: ${inputFile} -> ${outputFile}`);
+      
+      // 读取 silk 文件
+      const silkData = fs.readFileSync(inputFile);
+      console.log(`读取silk文件，大小: ${silkData.length} 字节`);
+      
+      // 使用 silk-wasm 解码为 PCM
+      const pcmData = await silk.decode(silkData, 24000); // 24kHz 采样率
+      console.log(`解码完成，PCM数据大小: ${pcmData.length} 字节`);
+      
+      // 创建临时 PCM 文件
+      const pcmFile = outputFile.replace('.mp3', '.pcm');
+      fs.writeFileSync(pcmFile, Buffer.from(pcmData));
+      
+      // 使用 FFmpeg 将 PCM 转换为 MP3
+      const ffmpegPath = getFfmpegPath();
+      const ffmpegCommand = `"${ffmpegPath}" -f s16le -ar 24000 -ac 1 -i "${pcmFile}" -acodec libmp3lame -q:a 2 "${outputFile}"`;
+      
+      console.log('执行FFmpeg命令:', ffmpegCommand);
+      
+      const ffmpegProcess = exec(ffmpegCommand, (ffmpegError, ffmpegStdout, ffmpegStderr) => {
+        // 清理临时文件
+        try {
+          fs.removeSync(pcmFile);
+        } catch (e) {
+          console.error('删除临时PCM文件失败:', e);
+        }
+        
+        clearTimeout(timeoutId);
+        
+        if (ffmpegError) {
+          console.error('FFmpeg转换错误:', ffmpegError.message);
+          console.error('stderr:', ffmpegStderr);
+          return reject(ffmpegError);
+        }
+        
+        console.log('FFmpeg输出:', ffmpegStdout);
+        if (ffmpegStderr) {
+          console.log('FFmpeg警告:', ffmpegStderr);
+        }
+        
+        if (fs.existsSync(outputFile) && fs.statSync(outputFile).size > 0) {
+          console.log(`silk-wasm转换成功: ${outputFile}`);
+          resolve();
+        } else {
+          reject(new Error('转换后的文件不存在或为空'));
+        }
+      });
+      
+      ffmpegProcess.on('error', (err) => {
+        clearTimeout(timeoutId);
+        console.error('FFmpeg进程错误:', err);
+        reject(err);
+      });
+      
+    } catch (e) {
+      clearTimeout(timeoutId);
+      console.error('silk-wasm转换错误:', e);
+      reject(e);
+    }
+  });
+}
+
+// 方法1: 使用silk2mp3直接转换
+function convertWithSilk2Mp3(inputFile, outputFile) {
+  return new Promise((resolve, reject) => {
+    const timeoutId = setTimeout(() => {
+      reject(new Error('命令执行超时'));
+    }, COMMAND_TIMEOUT);
+    
+    try {
+      if (!fs.existsSync(inputFile)) {
+        return reject(new Error(`输入文件不存在: ${inputFile}`));
+      }
+      
+      const stats = fs.statSync(inputFile);
+      if (stats.size === 0) {
+        return reject(new Error(`输入文件为空: ${inputFile}`));
+      }
+      
+      const outputDir = path.dirname(outputFile);
+      fs.ensureDirSync(outputDir);
+      
+      const silk2mp3Path = getSilk2Mp3Path();
+      console.log(`使用silk2mp3工具: ${silk2mp3Path}`);
+      
+      // silk2mp3 通常的用法: silk2mp3 input.silk output.mp3
+      const command = `"${silk2mp3Path}" "${inputFile}" "${outputFile}"`;
+      console.log('执行silk2mp3命令:', command);
+      
+      const childProcess = exec(command, (error, stdout, stderr) => {
+        clearTimeout(timeoutId);
+        
+        if (error) {
+          console.error('silk2mp3转换错误:', error.message);
+          console.error('stderr:', stderr);
+          return reject(error);
+        }
+        
+        console.log('silk2mp3输出:', stdout);
+        if (stderr) {
+          console.log('silk2mp3警告:', stderr);
+        }
+        
+        if (fs.existsSync(outputFile) && fs.statSync(outputFile).size > 0) {
+          console.log(`silk2mp3转换成功: ${outputFile}`);
+          resolve();
+        } else {
+          reject(new Error('转换后的文件不存在或为空'));
+        }
+      });
+      
+      childProcess.on('error', (err) => {
+        clearTimeout(timeoutId);
+        console.error('silk2mp3进程错误:', err);
+        reject(err);
+      });
+    } catch (e) {
+      clearTimeout(timeoutId);
+      reject(e);
+    }
+  });
+}
+
 function convertSilkToPcmToMp3(inputFile, outputFile) {
   return new Promise((resolve, reject) => {
     const timeoutId = setTimeout(() => {
