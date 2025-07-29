@@ -19,14 +19,19 @@ const PORT = process.env.PORT || 5000;
 
 // 生产环境配置
 const isProduction = process.env.NODE_ENV === 'production';
-const FRONTEND_URL = process.env.FRONTEND_URL || (isProduction ? 'https://your-frontend-domain.vercel.app' : 'http://localhost:3003');
+const FRONTEND_URL = process.env.FRONTEND_URL || (isProduction ? 'https://silk-to-mp3-converter.vercel.app' : 'http://localhost:3003');
 
 // 设置命令执行超时时间（毫秒）
 const COMMAND_TIMEOUT = 60000; // 60秒
 
 // 中间件 - 生产环境CORS配置
 app.use(cors({
-  origin: [FRONTEND_URL, 'http://localhost:3003', 'http://localhost:3000'],
+  origin: [
+    FRONTEND_URL, 
+    'https://silk-to-mp3-converter.vercel.app',
+    'http://localhost:3003', 
+    'http://localhost:3000'
+  ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
