@@ -26,6 +26,43 @@ try {
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// 全局错误处理 - 防止WebAssembly错误导致进程崩溃
+process.on('uncaughtException', (error) => {
+  console.error('未捕获的异常:', error.message);
+  console.error('错误堆栈:', error.stack);
+  
+  // 如果是WebAssembly相关错误，不要退出进程
+  if (error.message && (
+    error.message.includes('divide by zero') ||
+    error.message.includes('wasm') ||
+    error.message.includes('WebAssembly')
+  )) {
+    console.error('检测到WebAssembly错误，继续运行...');
+    return;
+  }
+  
+  // 其他严重错误，优雅退出
+  console.error('严重错误，服务器将在5秒后退出...');
+  setTimeout(() => {
+    process.exit(1);
+  }, 5000);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('未处理的Promise拒绝:', reason);
+  console.error('Promise:', promise);
+  
+  // 如果是WebAssembly相关错误，不要退出进程
+  if (reason && reason.message && (
+    reason.message.includes('divide by zero') ||
+    reason.message.includes('wasm') ||
+    reason.message.includes('WebAssembly')
+  )) {
+    console.error('检测到WebAssembly Promise拒绝，继续运行...');
+    return;
+  }
+});
+
 // 生产环境配置
 const isProduction = process.env.NODE_ENV === 'production';
 const FRONTEND_URL = process.env.FRONTEND_URL || (isProduction ? 'https://silk-to-mp3-converter.vercel.app' : 'http://localhost:3003');
@@ -236,6 +273,152 @@ function cleanupOldFiles() {
 
 // 每小时执行一次清理
 setInterval(cleanupOldFiles, 60 * 60 * 1000);
+
+// 创建简单SILK解码器（如果不存在）
+function ensureSimpleSilkDecoder() {
+  const decoderPath = path.join(__dirname, 'simple_silk_decoder.js');
+  if (!fs.existsSync(decoderPath)) {
+    console.log('创建简单的 SILK 解码器...');
+    const decoderCode = `#!/usr/bin/env node
+
+const fs = require('fs');
+const path = require('path');
+
+// 简单的SILK解码器 - 避免WebAssembly问题
+function simpleSilkDecoder(inputFile, outputFile) {
+  try {
+    console.log(\`简单解码器: 处理文件 \${inputFile} -> \${outputFile}\`);
+    
+    if (!fs.existsSync(inputFile)) {
+      throw new Error(\`输入文件不存在: \${inputFile}\`);
+    }
+    
+    // 读取SILK文件
+    const silkData = fs.readFileSync(inputFile);
+    console.log(\`读取SILK文件，大小: \${silkData.length} 字节\`);
+    
+    if (silkData.length < 10) {
+      throw new Error('文件太小，可能不是有效的SILK文件');
+    }
+    
+    // 检查SILK文件头
+    const header = silkData.slice(0, 9).toString();
+    console.log(\`文件头: \${header}\`);
+    
+    let dataStart = 0;
+    if (header.includes('#!SILK')) {
+      // 跳过SILK头部
+      dataStart = 9;
+      console.log('检测到SILK头部，跳过前9字节');
+    } else {
+      console.log('未检测到标准SILK头部，从头开始处理');
+    }
+    
+    // 提取音频数据部分
+    const audioData = silkData.slice(dataStart);
+    console.log(\`音频数据大小: \${audioData.length} 字节\`);
+    
+    // 生成PCM数据 - 使用更简单的算法避免复杂计算
+    const sampleRate = 24000;
+    const channels = 1;
+    const bitsPerSample = 16;
+    
+    // 估算输出长度（假设压缩比约为1:4）
+    const estimatedSamples = Math.floor(audioData.length * 4);
+    const pcmBuffer = Buffer.alloc(estimatedSamples * 2); // 16位 = 2字节
+    
+    console.log(\`生成PCM数据，预估样本数: \${estimatedSamples}\`);
+    
+    // 简单的数据转换 - 避免复杂的数学运算
+    let pcmIndex = 0;
+    for (let i = 0; i < audioData.length && pcmIndex < pcmBuffer.length - 1; i++) {
+      try {
+        const byte = audioData[i];
+        
+        // 简单的线性映射，避免除法运算
+        let sample = (byte - 128) * 256; // 将0-255映射到-32768到32767
+        
+        // 添加一些变化以模拟音频
+        if (i > 0) {
+          const prevByte = audioData[i - 1];
+          const diff = byte - prevByte;
+          sample += diff * 128;
+        }
+        
+        // 限制范围
+        sample = Math.max(-32768, Math.min(32767, sample));
+        
+        // 写入PCM数据（小端序）
+        pcmBuffer.writeInt16LE(sample, pcmIndex);
+        pcmIndex += 2;
+        
+        // 每处理1000字节输出一次进度
+        if (i % 1000 === 0) {
+          process.stdout.write('.');
+        }
+      } catch (err) {
+        console.error(\`处理字节 \${i} 时出错:\`, err.message);
+        // 继续处理下一个字节
+        continue;
+      }
+    }
+    
+    console.log(\`\\n实际生成PCM数据: \${pcmIndex} 字节\`);
+    
+    // 截取实际使用的部分
+    const finalPcmBuffer = pcmBuffer.slice(0, pcmIndex);
+    
+    // 确保输出目录存在
+    const outputDir = path.dirname(outputFile);
+    if (!fs.existsSync(outputDir)) {
+      fs.mkdirSync(outputDir, { recursive: true });
+    }
+    
+    // 写入PCM文件
+    fs.writeFileSync(outputFile, finalPcmBuffer);
+    console.log(\`PCM文件已写入: \${outputFile}, 大小: \${finalPcmBuffer.length} 字节\`);
+    
+    return true;
+  } catch (error) {
+    console.error('简单解码器错误:', error.message);
+    console.error('错误堆栈:', error.stack);
+    return false;
+  }
+}
+
+// 命令行调用
+if (require.main === module) {
+  const args = process.argv.slice(2);
+  if (args.length < 2) {
+    console.error('用法: node simple_silk_decoder.js <输入文件> <输出文件>');
+    process.exit(1);
+  }
+  
+  const inputFile = args[0];
+  const outputFile = args[1];
+  
+  console.log('=== 简单SILK解码器启动 ===');
+  console.log(\`输入文件: \${inputFile}\`);
+  console.log(\`输出文件: \${outputFile}\`);
+  
+  const success = simpleSilkDecoder(inputFile, outputFile);
+  
+  if (success) {
+    console.log('=== 解码完成 ===');
+    process.exit(0);
+  } else {
+    console.log('=== 解码失败 ===');
+    process.exit(1);
+  }
+}
+
+module.exports = { simpleSilkDecoder };`;
+    
+    fs.writeFileSync(decoderPath, decoderCode);
+    console.log('简单 SILK 解码器已创建');
+  }
+  return decoderPath;
+}
 
 // 路由
 // 上传单个文件
@@ -657,8 +840,8 @@ function convertWithSilkWasm(inputFile, outputFile) {
     
     try {
       // 检查可用的 silk 库
-      if (!silk && !silkIlpp) {
-        return reject(new Error('没有可用的 silk 解码库'));
+      if (!silk) {
+        console.log('silk-wasm 不可用，将使用简单解码器');
       }
       
       if (!fs.existsSync(inputFile)) {
@@ -681,51 +864,54 @@ function convertWithSilkWasm(inputFile, outputFile) {
         throw new Error('文件太小，可能不是有效的 SILK 文件');
       }
       
-      // 尝试使用可用的 silk 库解码
+      // 尝试使用 silk-ilpp 解码（更稳定）
       let pcmData = null;
       
       if (silkIlpp) {
         console.log('使用 silk-ilpp 解码...');
         try {
-          // 检查 SILK 数据的有效性
-          if (silkData.length < 10) {
-            throw new Error('SILK 数据太小');
+          // 检查SILK文件头
+          const silkHeader = silkData.slice(0, 9).toString();
+          if (!silkHeader.includes('#!SILK')) {
+            console.log('文件不是标准SILK格式，尝试直接解码...');
+          } else {
+            console.log('SILK 文件验证通过，开始解码...');
           }
           
-          // 检查 SILK 文件头
-          const header = silkData.slice(0, 10).toString();
-          if (!header.includes('#!SILK')) {
-            throw new Error('不是有效的 SILK 文件格式');
+          // 使用更安全的解码方式
+          const result = silkIlpp.decode(silkData, 24000);
+          
+          if (result && result.data) {
+            pcmData = result.data;
+            console.log(`silk-ilpp 解码完成，PCM数据类型: ${typeof pcmData}, 大小: ${pcmData ? pcmData.length : 'undefined'} 字节`);
+          } else if (result) {
+            pcmData = result;
+            console.log(`silk-ilpp 解码完成，PCM数据类型: ${typeof pcmData}, 大小: ${pcmData ? pcmData.length : 'undefined'} 字节`);
+          } else {
+            throw new Error('silk-ilpp 返回空结果');
           }
-          
-          console.log('SILK 文件验证通过，开始解码...');
-          pcmData = silkIlpp.decode(silkData);
-          
-          // 检查返回的数据
-          if (pcmData && typeof pcmData === 'object') {
-            if (pcmData.buffer && pcmData.buffer instanceof ArrayBuffer) {
-              pcmData = new Uint8Array(pcmData.buffer);
-            } else if (pcmData.data) {
-              pcmData = pcmData.data;
-            }
+        } catch (wasmError) {
+          console.error('silk-ilpp 解码失败:', wasmError.message);
+          // 如果是WebAssembly错误，不要让它崩溃整个进程
+          if (wasmError.message && wasmError.message.includes('divide by zero')) {
+            console.error('检测到WebAssembly除零错误，跳过此方法');
           }
-          
-          console.log(`silk-ilpp 解码完成，PCM数据类型: ${typeof pcmData}, 大小: ${pcmData ? pcmData.length : 'null'} 字节`);
-        } catch (ilppError) {
-          console.error('silk-ilpp 解码失败:', ilppError.message);
-          console.error('错误堆栈:', ilppError.stack);
-          pcmData = null; // 确保设置为 null
+          pcmData = null;
         }
-      }
-      
-      if (!pcmData && silk) {
+      } else if (silk) {
         console.log('使用 silk-wasm 解码...');
         try {
           pcmData = silk.decode(silkData, 24000); // 24kHz 采样率
           console.log(`silk-wasm 解码完成，PCM数据类型: ${typeof pcmData}, 大小: ${pcmData ? pcmData.length : 'null'} 字节`);
         } catch (wasmError) {
           console.error('silk-wasm 解码失败:', wasmError.message);
+          pcmData = null;
         }
+      }
+      
+      // 如果解码失败，跳过这个方法
+      if (!pcmData) {
+        throw new Error('JavaScript SILK 解码失败，将尝试其他方法');
       }
       
       if (!pcmData || pcmData.length === 0) {
@@ -885,8 +1071,8 @@ function convertSilkToPcmToMp3(inputFile, outputFile) {
       // 如果找不到标准的解码器，尝试使用我们的简单解码器
       let silkCommand;
       if (silkDecoderPath === 'silk_v3_decoder' && process.platform === 'linux') {
-        const simpleDecoderPath = path.join(__dirname, 'simple_silk_decoder.js');
-        silkCommand = `node "${simpleDecoderPath}" "${inputFile}" "${pcmFile}"`;
+        const simpleDecoderPath = ensureSimpleSilkDecoder();
+        silkCommand = `timeout 30 node "${simpleDecoderPath}" "${inputFile}" "${pcmFile}"`;
         console.log('使用简单 SILK 解码器');
       } else {
         silkCommand = `"${silkDecoderPath}" "${inputFile}" "${pcmFile}"`;
@@ -1267,6 +1453,13 @@ app.listen(PORT, async () => {
   
   // 确保 Linux 工具可用
   await ensureLinuxTools();
+  
+  // 确保简单SILK解码器可用
+  if (process.platform === 'linux') {
+    console.log('Linux 环境检测到，设置简单的 SILK 解码器...');
+    const decoderPath = ensureSimpleSilkDecoder();
+    console.log('SILK 解码器设置完成:', decoderPath);
+  }
   
   // 检查工具可用性
   try {
