@@ -5,7 +5,14 @@ const path = require('path');
 const fs = require('fs-extra');
 const { exec, execSync } = require('child_process');
 const ffmpeg = require('fluent-ffmpeg');
-const silk = require('silk-wasm');
+// 尝试加载 silk 解码库
+let silk = null;
+try {
+  silk = require('silk-wasm');
+  console.log('silk-wasm 库加载成功');
+} catch (e) {
+  console.error('silk-wasm 库加载失败:', e.message);
+}
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -105,12 +112,33 @@ function getSilk2Mp3Path() {
 }
 
 function getSilkDecoderPath() {
-  // 生产环境优先检查当前目录
-  const paths = [
-    path.join(__dirname, 'silk_v3_decoder'),
-    path.join(__dirname, 'silk_v3_decoder.exe'),
-    'silk_v3_decoder'
-  ];
+  // 检查操作系统
+  const isWindows = process.platform === 'win32';
+  const isLinux = process.platform === 'linux';
+  
+  console.log(`检测到操作系统: ${process.platform}`);
+  
+  // 根据操作系统选择不同的路径
+  const paths = [];
+  
+  if (isWindows) {
+    paths.push(
+      path.join(__dirname, 'silk_v3_decoder.exe'),
+      path.join(__dirname, 'silk2mp3.exe'),
+      'silk_v3_decoder'
+    );
+  } else if (isLinux) {
+    paths.push(
+      path.join(__dirname, 'silk_v3_decoder_linux'),
+      path.join(__dirname, 'silk_v3_decoder'),
+      'silk_v3_decoder'
+    );
+  } else {
+    paths.push(
+      path.join(__dirname, 'silk_v3_decoder'),
+      'silk_v3_decoder'
+    );
+  }
   
   for (const silkPath of paths) {
     if (fs.existsSync(silkPath)) {
@@ -121,7 +149,8 @@ function getSilkDecoderPath() {
   
   // 检查环境变量中的silk_v3_decoder
   try {
-    const whichOutput = execSync('which silk_v3_decoder 2>/dev/null || where silk_v3_decoder 2>nul', { 
+    const whichCommand = isWindows ? 'where silk_v3_decoder 2>nul' : 'which silk_v3_decoder 2>/dev/null';
+    const whichOutput = execSync(whichCommand, { 
       encoding: 'utf8', 
       timeout: 5000 
     });
@@ -609,6 +638,11 @@ function convertWithSilkWasm(inputFile, outputFile) {
     }, COMMAND_TIMEOUT);
     
     try {
+      // 检查 silk-wasm 库是否可用
+      if (!silk) {
+        return reject(new Error('silk-wasm 库未加载'));
+      }
+      
       if (!fs.existsSync(inputFile)) {
         return reject(new Error(`输入文件不存在: ${inputFile}`));
       }
@@ -624,9 +658,19 @@ function convertWithSilkWasm(inputFile, outputFile) {
       const silkData = fs.readFileSync(inputFile);
       console.log(`读取silk文件，大小: ${silkData.length} 字节`);
       
+      // 检查文件是否是有效的 SILK 格式
+      if (silkData.length < 10) {
+        throw new Error('文件太小，可能不是有效的 SILK 文件');
+      }
+      
       // 使用 silk-wasm 解码为 PCM
+      console.log('开始调用 silk.decode...');
       const pcmData = await silk.decode(silkData, 24000); // 24kHz 采样率
-      console.log(`解码完成，PCM数据大小: ${pcmData.length} 字节`);
+      console.log(`解码完成，PCM数据大小: ${pcmData ? pcmData.length : 'null'} 字节`);
+      
+      if (!pcmData || pcmData.length === 0) {
+        throw new Error('silk-wasm 解码返回空数据');
+      }
       
       // 创建临时 PCM 文件
       const pcmFile = outputFile.replace('.mp3', '.pcm');
@@ -1003,11 +1047,70 @@ function mergeMp3FilesWithFfmpeg(inputFiles, outputFile) {
   });
 }
 
+// 自动下载 Linux 工具（如果需要）
+async function ensureLinuxTools() {
+  if (process.platform === 'linux') {
+    const linuxDecoderPath = path.join(__dirname, 'silk_v3_decoder_linux');
+    
+    if (!fs.existsSync(linuxDecoderPath)) {
+      console.log('Linux 环境检测到，正在下载 silk_v3_decoder_linux...');
+      
+      try {
+        const https = require('https');
+        const url = 'https://github.com/kn007/silk-v3-decoder/releases/download/v1.0.0/silk_v3_decoder_linux';
+        
+        const file = fs.createWriteStream(linuxDecoderPath);
+        
+        await new Promise((resolve, reject) => {
+          https.get(url, (response) => {
+            response.pipe(file);
+            
+            file.on('finish', () => {
+              file.close();
+              // 设置执行权限
+              try {
+                fs.chmodSync(linuxDecoderPath, '755');
+                console.log('silk_v3_decoder_linux 下载并设置权限成功');
+                resolve();
+              } catch (chmodErr) {
+                console.error('设置执行权限失败:', chmodErr);
+                reject(chmodErr);
+              }
+            });
+            
+            file.on('error', (err) => {
+              fs.unlinkSync(linuxDecoderPath);
+              reject(err);
+            });
+          }).on('error', (err) => {
+            reject(err);
+          });
+        });
+        
+      } catch (error) {
+        console.error('下载 silk_v3_decoder_linux 失败:', error.message);
+        console.log('将尝试使用其他转换方法');
+      }
+    } else {
+      console.log('silk_v3_decoder_linux 已存在');
+      // 确保有执行权限
+      try {
+        fs.chmodSync(linuxDecoderPath, '755');
+      } catch (e) {
+        console.error('设置执行权限失败:', e);
+      }
+    }
+  }
+}
+
 // 启动服务器
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`服务器运行在端口 ${PORT}`);
   console.log(`环境: ${process.env.NODE_ENV || 'development'}`);
   console.log(`前端URL: ${FRONTEND_URL}`);
+  
+  // 确保 Linux 工具可用
+  await ensureLinuxTools();
   
   // 检查工具可用性
   try {
