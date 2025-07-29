@@ -670,8 +670,8 @@ function convertWithSilkWasm(inputFile, outputFile) {
       
       // 使用 silk-wasm 解码为 PCM
       console.log('开始调用 silk.decode...');
-      const pcmData = await silk.decode(silkData, 24000); // 24kHz 采样率
-      console.log(`解码完成，PCM数据大小: ${pcmData ? pcmData.length : 'null'} 字节`);
+      const pcmData = silk.decode(silkData, 24000); // 24kHz 采样率，注意：不是 await
+      console.log(`解码完成，PCM数据类型: ${typeof pcmData}, 大小: ${pcmData ? pcmData.length : 'null'} 字节`);
       
       if (!pcmData || pcmData.length === 0) {
         throw new Error('silk-wasm 解码返回空数据');
@@ -679,7 +679,21 @@ function convertWithSilkWasm(inputFile, outputFile) {
       
       // 创建临时 PCM 文件
       const pcmFile = outputFile.replace('.mp3', '.pcm');
-      fs.writeFileSync(pcmFile, Buffer.from(pcmData));
+      
+      // 确保 pcmData 是 Buffer 或 Uint8Array
+      let bufferData;
+      if (Buffer.isBuffer(pcmData)) {
+        bufferData = pcmData;
+      } else if (pcmData instanceof Uint8Array) {
+        bufferData = Buffer.from(pcmData);
+      } else if (Array.isArray(pcmData)) {
+        bufferData = Buffer.from(pcmData);
+      } else {
+        throw new Error(`不支持的PCM数据类型: ${typeof pcmData}`);
+      }
+      
+      fs.writeFileSync(pcmFile, bufferData);
+      console.log(`PCM文件已写入: ${pcmFile}, 大小: ${bufferData.length} 字节`);
       
       // 使用 FFmpeg 将 PCM 转换为 MP3
       const ffmpegPath = getFfmpegPath();
@@ -1064,14 +1078,33 @@ async function ensureLinuxTools() {
         const https = require('https');
         const url = 'https://github.com/kn007/silk-v3-decoder/releases/download/v1.0.0/silk_v3_decoder_linux';
         
-        const file = fs.createWriteStream(linuxDecoderPath);
+        console.log('开始下载 silk_v3_decoder_linux...');
         
         await new Promise((resolve, reject) => {
           https.get(url, (response) => {
+            console.log('HTTP 状态码:', response.statusCode);
+            console.log('Content-Type:', response.headers['content-type']);
+            
+            if (response.statusCode !== 200) {
+              return reject(new Error(`下载失败，HTTP状态码: ${response.statusCode}`));
+            }
+            
+            const file = fs.createWriteStream(linuxDecoderPath);
             response.pipe(file);
             
             file.on('finish', () => {
               file.close();
+              
+              // 检查文件大小
+              const stats = fs.statSync(linuxDecoderPath);
+              console.log(`下载的文件大小: ${stats.size} 字节`);
+              
+              if (stats.size < 1000) {
+                console.error('下载的文件太小，可能不是正确的二进制文件');
+                fs.unlinkSync(linuxDecoderPath);
+                return reject(new Error('下载的文件大小异常'));
+              }
+              
               // 设置执行权限
               try {
                 fs.chmodSync(linuxDecoderPath, '755');
@@ -1084,10 +1117,14 @@ async function ensureLinuxTools() {
             });
             
             file.on('error', (err) => {
-              fs.unlinkSync(linuxDecoderPath);
+              console.error('文件写入错误:', err);
+              try {
+                fs.unlinkSync(linuxDecoderPath);
+              } catch (e) {}
               reject(err);
             });
           }).on('error', (err) => {
+            console.error('HTTP请求错误:', err);
             reject(err);
           });
         });
