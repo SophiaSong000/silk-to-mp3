@@ -1108,6 +1108,7 @@ app.listen(PORT, async () => {
   console.log(`服务器运行在端口 ${PORT}`);
   console.log(`环境: ${process.env.NODE_ENV || 'development'}`);
   console.log(`前端URL: ${FRONTEND_URL}`);
+  console.log(`平台: ${process.platform}`);
   
   // 确保 Linux 工具可用
   await ensureLinuxTools();
