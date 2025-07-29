@@ -145,7 +145,10 @@ function getSilkDecoderPath() {
     );
   }
   
+  console.log('检查以下路径:', paths);
+  
   for (const silkPath of paths) {
+    console.log(`检查路径: ${silkPath}, 存在: ${fs.existsSync(silkPath)}`);
     if (fs.existsSync(silkPath)) {
       console.log('使用silk_v3_decoder:', silkPath);
       return silkPath;
@@ -170,6 +173,7 @@ function getSilkDecoderPath() {
     console.log('silk_v3_decoder不在PATH中，使用默认路径');
   }
   
+  console.log('所有路径都不存在，返回默认路径');
   return 'silk_v3_decoder';
 }
 
