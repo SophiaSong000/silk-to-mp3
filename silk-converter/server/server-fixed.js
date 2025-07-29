@@ -5,33 +5,58 @@ const path = require('path');
 const fs = require('fs-extra');
 const { exec, execSync } = require('child_process');
 const ffmpeg = require('fluent-ffmpeg');
+// 尝试加载 silk 解码库
+let silk = null;
+try {
+  silk = require('silk-wasm');
+  console.log('silk-wasm 库加载成功');
+} catch (e) {
+  console.error('silk-wasm 库加载失败:', e.message);
+}
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// 生产环境配置
+const isProduction = process.env.NODE_ENV === 'production';
+const FRONTEND_URL = process.env.FRONTEND_URL || (isProduction ? 'https://your-frontend-domain.vercel.app' : 'http://localhost:3003');
+
 // 设置命令执行超时时间（毫秒）
 const COMMAND_TIMEOUT = 60000; // 60秒
 
-// 中间件 - 使用更宽松的CORS配置
+// 中间件 - 生产环境CORS配置
 app.use(cors({
-  origin: true, // 允许所有来源
+  origin: [FRONTEND_URL, 'http://localhost:3003', 'http://localhost:3000'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
-app.use(express.json());
+
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // 添加请求日志中间件
 app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.url} - ${req.ip}`);
   next();
+});
+
+// 健康检查端点
+app.get('/health', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development'
+  });
 });
 
 // 配置文件上传
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, path.join(__dirname, 'uploads'));
+    const uploadDir = path.join(__dirname, 'uploads');
+    fs.ensureDirSync(uploadDir);
+    cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
     // 保留原始文件名，但添加时间戳前缀以避免冲突
@@ -39,28 +64,101 @@ const storage = multer.diskStorage({
   }
 });
 
-const upload = multer({ storage });
+const upload = multer({ 
+  storage,
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB限制
+    files: 50 // 最多50个文件
+  },
+  fileFilter: (req, file, cb) => {
+    // 检查文件类型
+    const allowedTypes = ['.silk', '.amr'];
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (allowedTypes.includes(ext) || file.mimetype.includes('audio')) {
+      cb(null, true);
+    } else {
+      cb(new Error('不支持的文件类型'), false);
+    }
+  }
+});
 
 // 工具路径检测函数
+function getSilk2Mp3Path() {
+  // 优先检查当前目录的silk2mp3.exe
+  const localSilk2Mp3 = path.join(__dirname, 'silk2mp3.exe');
+  if (fs.existsSync(localSilk2Mp3)) {
+    console.log('使用本地silk2mp3:', localSilk2Mp3);
+    return localSilk2Mp3;
+  }
+  
+  // 检查系统PATH中的silk2mp3
+  try {
+    const whichOutput = execSync('which silk2mp3 2>/dev/null || where silk2mp3 2>nul', { 
+      encoding: 'utf8', 
+      timeout: 5000 
+    });
+    if (whichOutput && whichOutput.trim()) {
+      const foundPath = whichOutput.trim().split('\n')[0];
+      if (foundPath && !foundPath.includes('�') && fs.existsSync(foundPath)) {
+        console.log('使用系统PATH中的silk2mp3:', foundPath);
+        return foundPath;
+      }
+    }
+  } catch (e) {
+    console.log('silk2mp3不在PATH中，使用默认路径');
+  }
+  
+  return 'silk2mp3';
+}
+
 function getSilkDecoderPath() {
-  // 检查是否有本地silk_v3_decoder.exe
-  const localSilkDecoder = path.join(__dirname, 'silk_v3_decoder.exe');
-  if (fs.existsSync(localSilkDecoder)) {
-    console.log('使用本地silk_v3_decoder:', localSilkDecoder);
-    return localSilkDecoder;
+  // 检查操作系统
+  const isWindows = process.platform === 'win32';
+  const isLinux = process.platform === 'linux';
+  
+  console.log(`检测到操作系统: ${process.platform}`);
+  
+  // 根据操作系统选择不同的路径
+  const paths = [];
+  
+  if (isWindows) {
+    paths.push(
+      path.join(__dirname, 'silk_v3_decoder.exe'),
+      path.join(__dirname, 'silk2mp3.exe'),
+      'silk_v3_decoder'
+    );
+  } else if (isLinux) {
+    paths.push(
+      path.join(__dirname, 'silk_v3_decoder_linux'),
+      path.join(__dirname, 'silk_v3_decoder'),
+      'silk_v3_decoder'
+    );
+  } else {
+    paths.push(
+      path.join(__dirname, 'silk_v3_decoder'),
+      'silk_v3_decoder'
+    );
+  }
+  
+  for (const silkPath of paths) {
+    if (fs.existsSync(silkPath)) {
+      console.log('使用silk_v3_decoder:', silkPath);
+      return silkPath;
+    }
   }
   
   // 检查环境变量中的silk_v3_decoder
   try {
-    const whichOutput = execSync('where silk_v3_decoder 2>nul', { encoding: 'utf8', timeout: 5000 });
+    const whichCommand = isWindows ? 'where silk_v3_decoder 2>nul' : 'which silk_v3_decoder 2>/dev/null';
+    const whichOutput = execSync(whichCommand, { 
+      encoding: 'utf8', 
+      timeout: 5000 
+    });
     if (whichOutput && whichOutput.trim()) {
       const foundPath = whichOutput.trim().split('\n')[0];
-      // 验证路径是否有效且不包含乱码
       if (foundPath && !foundPath.includes('�') && fs.existsSync(foundPath)) {
         console.log('使用系统PATH中的silk_v3_decoder:', foundPath);
         return foundPath;
-      } else {
-        console.log('系统PATH中的silk_v3_decoder路径无效，使用默认路径');
       }
     }
   } catch (e) {
@@ -71,32 +169,55 @@ function getSilkDecoderPath() {
 }
 
 function getFfmpegPath() {
-  // 检查是否有本地ffmpeg.exe
-  const localFfmpeg = path.join(__dirname, 'ffmpeg.exe');
-  if (fs.existsSync(localFfmpeg)) {
-    console.log('使用本地ffmpeg:', localFfmpeg);
-    return localFfmpeg;
-  }
-  
-  // 检查环境变量中的ffmpeg
+  // 生产环境优先检查系统ffmpeg
   try {
-    const whichOutput = execSync('where ffmpeg 2>nul', { encoding: 'utf8', timeout: 5000 });
+    const whichOutput = execSync('which ffmpeg 2>/dev/null || where ffmpeg 2>nul', { 
+      encoding: 'utf8', 
+      timeout: 5000 
+    });
     if (whichOutput && whichOutput.trim()) {
       const foundPath = whichOutput.trim().split('\n')[0];
-      // 验证路径是否有效且不包含乱码
-      if (foundPath && !foundPath.includes('�') && fs.existsSync(foundPath)) {
-        console.log('使用系统PATH中的ffmpeg:', foundPath);
+      if (foundPath && !foundPath.includes('�')) {
+        console.log('使用系统ffmpeg:', foundPath);
         return foundPath;
-      } else {
-        console.log('系统PATH中的ffmpeg路径无效，使用默认路径');
       }
     }
   } catch (e) {
-    console.log('ffmpeg不在PATH中，使用默认路径');
+    console.log('使用默认ffmpeg路径');
   }
   
   return 'ffmpeg';
 }
+
+// 文件清理任务 - 定期清理临时文件
+function cleanupOldFiles() {
+  const directories = ['uploads', 'public'];
+  const maxAge = 24 * 60 * 60 * 1000; // 24小时
+  
+  directories.forEach(dir => {
+    const dirPath = path.join(__dirname, dir);
+    if (!fs.existsSync(dirPath)) return;
+    
+    try {
+      const files = fs.readdirSync(dirPath);
+      files.forEach(file => {
+        const filePath = path.join(dirPath, file);
+        const stats = fs.statSync(filePath);
+        const age = Date.now() - stats.mtime.getTime();
+        
+        if (age > maxAge) {
+          fs.removeSync(filePath);
+          console.log(`清理过期文件: ${file}`);
+        }
+      });
+    } catch (error) {
+      console.error(`清理目录 ${dir} 时出错:`, error);
+    }
+  });
+}
+
+// 每小时执行一次清理
+setInterval(cleanupOldFiles, 60 * 60 * 1000);
 
 // 路由
 // 上传单个文件
@@ -145,10 +266,10 @@ app.post('/api/upload', (req, res, next) => {
       let success = false;
       let error = null;
       
-      // 方法1: 使用silk_v3_decoder直接转换为PCM，然后用ffmpeg转换为MP3
+      // 方法1: 使用silk-wasm (Node.js 纯 JavaScript 实现)
       try {
-        console.log('尝试方法1: silk_v3_decoder + ffmpeg');
-        await convertSilkToPcmToMp3(inputFile, outputFile);
+        console.log('尝试方法1: silk-wasm (JavaScript实现)');
+        await convertWithSilkWasm(inputFile, outputFile);
         success = true;
         console.log('方法1转换成功');
       } catch (err) {
@@ -156,11 +277,11 @@ app.post('/api/upload', (req, res, next) => {
         error = err;
       }
       
-      // 方法2: 使用silk_v3_decoder转换为WAV，然后用ffmpeg转换为MP3
+      // 方法2: 使用silk2mp3直接转换
       if (!success) {
         try {
-          console.log('尝试方法2: silk_v3_decoder -d + ffmpeg');
-          await convertSilkToWavToMp3(inputFile, outputFile);
+          console.log('尝试方法2: silk2mp3直接转换');
+          await convertWithSilk2Mp3(inputFile, outputFile);
           success = true;
           console.log('方法2转换成功');
         } catch (err) {
@@ -169,15 +290,41 @@ app.post('/api/upload', (req, res, next) => {
         }
       }
       
-      // 方法3: 直接使用ffmpeg转换
+      // 方法3: 使用silk_v3_decoder直接转换为PCM，然后用ffmpeg转换为MP3
       if (!success) {
         try {
-          console.log('尝试方法3: 直接使用ffmpeg');
-          await convertWithFfmpegDirect(inputFile, outputFile);
+          console.log('尝试方法3: silk_v3_decoder + ffmpeg');
+          await convertSilkToPcmToMp3(inputFile, outputFile);
           success = true;
           console.log('方法3转换成功');
         } catch (err) {
           console.error('方法3失败:', err.message);
+          error = err;
+        }
+      }
+      
+      // 方法4: 使用silk_v3_decoder转换为WAV，然后用ffmpeg转换为MP3
+      if (!success) {
+        try {
+          console.log('尝试方法4: silk_v3_decoder -d + ffmpeg');
+          await convertSilkToWavToMp3(inputFile, outputFile);
+          success = true;
+          console.log('方法4转换成功');
+        } catch (err) {
+          console.error('方法4失败:', err.message);
+          error = err;
+        }
+      }
+      
+      // 方法5: 直接使用ffmpeg转换
+      if (!success) {
+        try {
+          console.log('尝试方法5: 直接使用ffmpeg');
+          await convertWithFfmpegDirect(inputFile, outputFile);
+          success = true;
+          console.log('方法5转换成功');
+        } catch (err) {
+          console.error('方法5失败:', err.message);
           error = err;
         }
       }
@@ -212,6 +359,13 @@ app.post('/api/upload', (req, res, next) => {
         };
         console.log(`添加失败结果:`, result);
         results.push(result);
+      }
+      
+      // 清理输入文件
+      try {
+        fs.removeSync(inputFile);
+      } catch (e) {
+        console.error('清理输入文件失败:', e);
       }
     }
     
@@ -252,12 +406,6 @@ app.post('/api/upload-multiple', upload.array('files', 50), async (req, res) => 
       try {
         const originalName = file.originalname;
         
-        // 排序优先级：
-        // 1. 文件名前缀数字（如"01_file.silk"）
-        // 2. 文件名中的时间戳（如"msg_123456789.silk"）
-        // 3. 文件创建时间
-        // 4. 上传顺序
-        
         let sortOrder = req.files.indexOf(file); // 默认使用上传顺序
         let sortSource = '上传顺序';
         
@@ -282,7 +430,6 @@ app.post('/api/upload-multiple', upload.array('files', 50), async (req, res) => 
               sortSource = '文件创建时间';
             } catch (statErr) {
               console.error('获取文件创建时间失败:', statErr);
-              // 保持默认的上传顺序
             }
           }
         }
@@ -295,7 +442,6 @@ app.post('/api/upload-multiple', upload.array('files', 50), async (req, res) => 
         });
       } catch (err) {
         console.error('处理文件信息时出错:', err);
-        // 如果处理某个文件出错，使用默认值
         fileInfos.push({
           originalName: file.originalname,
           path: file.path,
@@ -307,11 +453,9 @@ app.post('/api/upload-multiple', upload.array('files', 50), async (req, res) => 
     
     // 按排序值排序
     fileInfos.sort((a, b) => {
-      // 如果是数字，按数字大小排序
       if (typeof a.sortOrder === 'number' && typeof b.sortOrder === 'number') {
         return a.sortOrder - b.sortOrder;
       }
-      // 如果是字符串，按字符串比较
       return String(a.sortOrder).localeCompare(String(b.sortOrder));
     });
     
@@ -326,47 +470,54 @@ app.post('/api/upload-multiple', upload.array('files', 50), async (req, res) => 
     for (const fileInfo of fileInfos) {
       console.log('处理文件:', fileInfo.originalName);
       const inputFile = fileInfo.path;
-      // 使用排序值作为文件名前缀，确保合并后的顺序正确
       const outputFile = path.join(__dirname, 'uploads', `${String(fileInfo.sortOrder).padStart(10, '0')}-${path.basename(fileInfo.originalName, path.extname(fileInfo.originalName))}.mp3`);
       
       console.log('转换文件:', inputFile, '到:', outputFile);
       
-      // 尝试所有可能的转换方法
       let success = false;
       
-      // 方法1
       try {
-        await convertSilkToPcmToMp3(inputFile, outputFile);
+        await convertWithSilkWasm(inputFile, outputFile);
         success = true;
       } catch (err) {
         console.error('方法1失败:', err.message);
-      }
-      
-      // 方法2
-      if (!success) {
         try {
-          await convertSilkToWavToMp3(inputFile, outputFile);
+          await convertWithSilk2Mp3(inputFile, outputFile);
           success = true;
-        } catch (err) {
-          console.error('方法2失败:', err.message);
+        } catch (err2) {
+          console.error('方法2失败:', err2.message);
+          try {
+            await convertSilkToPcmToMp3(inputFile, outputFile);
+            success = true;
+          } catch (err3) {
+            console.error('方法3失败:', err3.message);
+            try {
+              await convertSilkToWavToMp3(inputFile, outputFile);
+              success = true;
+            } catch (err4) {
+              console.error('方法4失败:', err4.message);
+              try {
+                await convertWithFfmpegDirect(inputFile, outputFile);
+                success = true;
+              } catch (err5) {
+                console.error('方法5失败:', err5.message);
+              }
+            }
+          }
         }
       }
       
-      // 方法3
-      if (!success) {
-        try {
-          await convertWithFfmpegDirect(inputFile, outputFile);
-          success = true;
-        } catch (err) {
-          console.error('方法3失败:', err.message);
-        }
-      }
-      
-      // 检查输出文件是否存在且大小大于0
       if (success && fs.existsSync(outputFile) && fs.statSync(outputFile).size > 0) {
         mp3Files.push(outputFile);
       } else {
         console.error(`文件 ${fileInfo.originalName} 转换失败`);
+      }
+      
+      // 清理输入文件
+      try {
+        fs.removeSync(inputFile);
+      } catch (e) {
+        console.error('清理输入文件失败:', e);
       }
     }
     
@@ -382,7 +533,6 @@ app.post('/api/upload-multiple', upload.array('files', 50), async (req, res) => 
       const singleFile = mp3Files[0];
       const publicFile = path.join(__dirname, 'public', `merged-${Date.now()}.mp3`);
       
-      // 复制文件到public目录
       fs.copyFileSync(singleFile, publicFile);
       
       const fileUrl = `/api/download/${path.basename(publicFile)}`;
@@ -392,26 +542,29 @@ app.post('/api/upload-multiple', upload.array('files', 50), async (req, res) => 
     // 合并所有MP3文件
     const mergedFile = path.join(__dirname, 'public', `merged-${Date.now()}.mp3`);
     
-    // 尝试所有可能的合并方法
     let mergeSuccess = false;
     
-    // 方法1
     try {
       await mergeMp3FilesWithConcat(mp3Files, mergedFile);
       mergeSuccess = true;
     } catch (err) {
       console.error('合并方法1失败:', err.message);
-    }
-    
-    // 方法2
-    if (!mergeSuccess) {
       try {
         await mergeMp3FilesWithFfmpeg(mp3Files, mergedFile);
         mergeSuccess = true;
-      } catch (err) {
-        console.error('合并方法2失败:', err.message);
+      } catch (err2) {
+        console.error('合并方法2失败:', err2.message);
       }
     }
+    
+    // 清理临时MP3文件
+    mp3Files.forEach(file => {
+      try {
+        fs.removeSync(file);
+      } catch (e) {
+        console.error('清理临时MP3文件失败:', e);
+      }
+    });
     
     if (!mergeSuccess) {
       throw new Error('所有合并方法都失败');
@@ -419,9 +572,7 @@ app.post('/api/upload-multiple', upload.array('files', 50), async (req, res) => 
     
     console.log('文件合并完成:', mergedFile);
     
-    // 检查输出文件是否存在且大小大于0
     if (fs.existsSync(mergedFile) && fs.statSync(mergedFile).size > 0) {
-      // 返回合并后的文件URL
       const fileUrl = `/api/download/${path.basename(mergedFile)}`;
       res.json({ success: true, fileUrl });
     } else {
@@ -439,7 +590,12 @@ app.get('/api/test', (req, res) => {
   res.json({ 
     success: true, 
     message: '服务器正常工作',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development',
+    tools: {
+      silk_decoder: getSilkDecoderPath(),
+      ffmpeg: getFfmpegPath()
+    }
   });
 });
 
@@ -452,264 +608,103 @@ app.get('/api/download/:filename', (req, res) => {
   
   if (fs.existsSync(filePath)) {
     console.log('文件存在，开始下载');
-    res.download(filePath);
+    res.download(filePath, (err) => {
+      if (err) {
+        console.error('下载文件时出错:', err);
+      } else {
+        // 下载完成后可以选择删除文件（可选）
+        // setTimeout(() => {
+        //   try {
+        //     fs.removeSync(filePath);
+        //     console.log('下载完成，文件已清理:', filename);
+        //   } catch (e) {
+        //     console.error('清理下载文件失败:', e);
+        //   }
+        // }, 60000); // 1分钟后删除
+      }
+    });
   } else {
     console.error('文件不存在:', filePath);
     res.status(404).json({ error: '文件不存在' });
   }
 });
 
-// 方法1: 使用silk_v3_decoder转换为PCM，然后用ffmpeg转换为MP3
-function convertSilkToPcmToMp3(inputFile, outputFile) {
-  return new Promise((resolve, reject) => {
+// 转换函数（简化版，包含核心逻辑）
+// 方法0: 使用 silk-wasm (Node.js 纯 JavaScript 实现)
+function convertWithSilkWasm(inputFile, outputFile) {
+  return new Promise(async (resolve, reject) => {
     const timeoutId = setTimeout(() => {
       reject(new Error('命令执行超时'));
     }, COMMAND_TIMEOUT);
     
     try {
-      console.log('使用PCM中间格式转换方法');
+      // 检查 silk-wasm 库是否可用
+      if (!silk) {
+        return reject(new Error('silk-wasm 库未加载'));
+      }
       
-      // 检查输入文件是否存在
       if (!fs.existsSync(inputFile)) {
-        console.error(`输入文件不存在: ${inputFile}`);
         return reject(new Error(`输入文件不存在: ${inputFile}`));
       }
       
-      // 检查输入文件大小
       const stats = fs.statSync(inputFile);
-      console.log(`输入文件大小: ${stats.size} 字节`);
       if (stats.size === 0) {
-        console.error(`输入文件为空: ${inputFile}`);
         return reject(new Error(`输入文件为空: ${inputFile}`));
       }
       
-      // 创建临时PCM文件
+      console.log(`使用silk-wasm转换: ${inputFile} -> ${outputFile}`);
+      
+      // 读取 silk 文件
+      const silkData = fs.readFileSync(inputFile);
+      console.log(`读取silk文件，大小: ${silkData.length} 字节`);
+      
+      // 检查文件是否是有效的 SILK 格式
+      if (silkData.length < 10) {
+        throw new Error('文件太小，可能不是有效的 SILK 文件');
+      }
+      
+      // 使用 silk-wasm 解码为 PCM
+      console.log('开始调用 silk.decode...');
+      const pcmData = await silk.decode(silkData, 24000); // 24kHz 采样率
+      console.log(`解码完成，PCM数据大小: ${pcmData ? pcmData.length : 'null'} 字节`);
+      
+      if (!pcmData || pcmData.length === 0) {
+        throw new Error('silk-wasm 解码返回空数据');
+      }
+      
+      // 创建临时 PCM 文件
       const pcmFile = outputFile.replace('.mp3', '.pcm');
+      fs.writeFileSync(pcmFile, Buffer.from(pcmData));
       
-      // 确保输出目录存在
-      const outputDir = path.dirname(pcmFile);
-      fs.ensureDirSync(outputDir);
-      console.log(`确保输出目录存在: ${outputDir}`);
-      
-      const silkDecoderPath = getSilkDecoderPath();
-      console.log(`silk_v3_decoder路径: ${silkDecoderPath}`);
-      
-      // 第一步：将silk转换为pcm
-      const silkCommand = `"${silkDecoderPath}" "${inputFile}" "${pcmFile}"`;
-      console.log('执行silk转pcm命令:', silkCommand);
-      
-      const silkProcess = exec(silkCommand, (silkError, silkStdout, silkStderr) => {
-        if (silkError) {
-          clearTimeout(timeoutId);
-          console.error(`Silk解码错误: ${silkError}`);
-          console.error(`标准错误: ${silkStderr}`);
-          return reject(silkError);
-        }
-        
-        console.log(`Silk解码输出: ${silkStdout}`);
-        
-        // 第二步：使用ffmpeg将pcm转换为mp3
-        const ffmpegPath = getFfmpegPath();
-        const ffmpegCommand = `"${ffmpegPath}" -f s16le -ar 24000 -ac 1 -i "${pcmFile}" -acodec libmp3lame -q:a 2 "${outputFile}"`;
-        console.log('执行ffmpeg命令:', ffmpegCommand);
-        
-        const ffmpegProcess = exec(ffmpegCommand, (ffmpegError, ffmpegStdout, ffmpegStderr) => {
-          // 删除临时pcm文件
-          try {
-            fs.removeSync(pcmFile);
-            console.log('临时PCM文件已删除');
-          } catch (e) {
-            console.error('删除临时PCM文件失败:', e);
-          }
-          
-          clearTimeout(timeoutId);
-          
-          if (ffmpegError) {
-            console.error(`FFmpeg转换错误: ${ffmpegError}`);
-            console.error(`标准错误: ${ffmpegStderr}`);
-            return reject(ffmpegError);
-          }
-          
-          console.log(`FFmpeg输出: ${ffmpegStdout}`);
-          
-          // 检查输出文件
-          if (fs.existsSync(outputFile) && fs.statSync(outputFile).size > 0) {
-            resolve();
-          } else {
-            reject(new Error('转换后的文件不存在或为空'));
-          }
-        });
-        
-        ffmpegProcess.on('error', (err) => {
-          clearTimeout(timeoutId);
-          console.error('FFmpeg进程错误:', err);
-          reject(err);
-        });
-      });
-      
-      silkProcess.on('error', (err) => {
-        clearTimeout(timeoutId);
-        console.error('Silk进程错误:', err);
-        reject(err);
-      });
-    } catch (e) {
-      clearTimeout(timeoutId);
-      console.error('转换过程中发生异常:', e);
-      reject(e);
-    }
-  });
-}
-
-// 方法2: 使用silk_v3_decoder转换为WAV，然后用ffmpeg转换为MP3
-function convertSilkToWavToMp3(inputFile, outputFile) {
-  return new Promise((resolve, reject) => {
-    const timeoutId = setTimeout(() => {
-      reject(new Error('命令执行超时'));
-    }, COMMAND_TIMEOUT);
-    
-    try {
-      console.log('使用WAV中间格式转换方法');
-      
-      // 检查输入文件是否存在
-      if (!fs.existsSync(inputFile)) {
-        console.error(`输入文件不存在: ${inputFile}`);
-        return reject(new Error(`输入文件不存在: ${inputFile}`));
-      }
-      
-      // 检查输入文件大小
-      const stats = fs.statSync(inputFile);
-      console.log(`输入文件大小: ${stats.size} 字节`);
-      if (stats.size === 0) {
-        console.error(`输入文件为空: ${inputFile}`);
-        return reject(new Error(`输入文件为空: ${inputFile}`));
-      }
-      
-      // 创建临时WAV文件
-      const wavFile = outputFile.replace('.mp3', '.wav');
-      
-      // 确保输出目录存在
-      const outputDir = path.dirname(wavFile);
-      fs.ensureDirSync(outputDir);
-      console.log(`确保输出目录存在: ${outputDir}`);
-      
-      const silkDecoderPath = getSilkDecoderPath();
-      console.log(`silk_v3_decoder路径: ${silkDecoderPath}`);
-      
-      // 第一步：将silk转换为wav
-      const silkCommand = `"${silkDecoderPath}" "${inputFile}" "${wavFile}" -d`;
-      console.log('执行silk转wav命令:', silkCommand);
-      
-      const silkProcess = exec(silkCommand, (silkError, silkStdout, silkStderr) => {
-        if (silkError) {
-          clearTimeout(timeoutId);
-          console.error(`Silk解码错误: ${silkError}`);
-          console.error(`标准错误: ${silkStderr}`);
-          return reject(silkError);
-        }
-        
-        console.log(`Silk解码输出: ${silkStdout}`);
-        
-        // 第二步：使用ffmpeg将wav转换为mp3
-        const ffmpegPath = getFfmpegPath();
-        const ffmpegCommand = `"${ffmpegPath}" -i "${wavFile}" -acodec libmp3lame -q:a 2 "${outputFile}"`;
-        console.log('执行ffmpeg命令:', ffmpegCommand);
-        
-        const ffmpegProcess = exec(ffmpegCommand, (ffmpegError, ffmpegStdout, ffmpegStderr) => {
-          // 删除临时wav文件
-          try {
-            fs.removeSync(wavFile);
-            console.log('临时WAV文件已删除');
-          } catch (e) {
-            console.error('删除临时WAV文件失败:', e);
-          }
-          
-          clearTimeout(timeoutId);
-          
-          if (ffmpegError) {
-            console.error(`FFmpeg转换错误: ${ffmpegError}`);
-            console.error(`标准错误: ${ffmpegStderr}`);
-            return reject(ffmpegError);
-          }
-          
-          console.log(`FFmpeg输出: ${ffmpegStdout}`);
-          
-          // 检查输出文件
-          if (fs.existsSync(outputFile) && fs.statSync(outputFile).size > 0) {
-            resolve();
-          } else {
-            reject(new Error('转换后的文件不存在或为空'));
-          }
-        });
-        
-        ffmpegProcess.on('error', (err) => {
-          clearTimeout(timeoutId);
-          console.error('FFmpeg进程错误:', err);
-          reject(err);
-        });
-      });
-      
-      silkProcess.on('error', (err) => {
-        clearTimeout(timeoutId);
-        console.error('Silk进程错误:', err);
-        reject(err);
-      });
-    } catch (e) {
-      clearTimeout(timeoutId);
-      console.error('转换过程中发生异常:', e);
-      reject(e);
-    }
-  });
-}
-
-// 方法3: 直接使用ffmpeg转换
-function convertWithFfmpegDirect(inputFile, outputFile) {
-  return new Promise((resolve, reject) => {
-    const timeoutId = setTimeout(() => {
-      reject(new Error('命令执行超时'));
-    }, COMMAND_TIMEOUT);
-    
-    try {
-      console.log('使用ffmpeg直接转换方法');
-      
-      // 检查输入文件是否存在
-      if (!fs.existsSync(inputFile)) {
-        console.error(`输入文件不存在: ${inputFile}`);
-        return reject(new Error(`输入文件不存在: ${inputFile}`));
-      }
-      
-      // 检查输入文件大小
-      const stats = fs.statSync(inputFile);
-      console.log(`输入文件大小: ${stats.size} 字节`);
-      if (stats.size === 0) {
-        console.error(`输入文件为空: ${inputFile}`);
-        return reject(new Error(`输入文件为空: ${inputFile}`));
-      }
-      
-      // 确保输出目录存在
-      const outputDir = path.dirname(outputFile);
-      fs.ensureDirSync(outputDir);
-      console.log(`确保输出目录存在: ${outputDir}`);
-      
+      // 使用 FFmpeg 将 PCM 转换为 MP3
       const ffmpegPath = getFfmpegPath();
-      console.log(`ffmpeg路径: ${ffmpegPath}`);
+      const ffmpegCommand = `"${ffmpegPath}" -f s16le -ar 24000 -ac 1 -i "${pcmFile}" -acodec libmp3lame -q:a 2 "${outputFile}"`;
       
-      // 尝试直接使用ffmpeg转换
-      const ffmpegCommand = `"${ffmpegPath}" -i "${inputFile}" -acodec libmp3lame -q:a 2 "${outputFile}"`;
-      console.log('执行ffmpeg命令:', ffmpegCommand);
+      console.log('执行FFmpeg命令:', ffmpegCommand);
       
       const ffmpegProcess = exec(ffmpegCommand, (ffmpegError, ffmpegStdout, ffmpegStderr) => {
+        // 清理临时文件
+        try {
+          fs.removeSync(pcmFile);
+        } catch (e) {
+          console.error('删除临时PCM文件失败:', e);
+        }
+        
         clearTimeout(timeoutId);
         
         if (ffmpegError) {
-          console.error(`FFmpeg转换错误: ${ffmpegError}`);
-          console.error(`标准错误: ${ffmpegStderr}`);
+          console.error('FFmpeg转换错误:', ffmpegError.message);
+          console.error('stderr:', ffmpegStderr);
           return reject(ffmpegError);
         }
         
-        console.log(`FFmpeg输出: ${ffmpegStdout}`);
+        console.log('FFmpeg输出:', ffmpegStdout);
+        if (ffmpegStderr) {
+          console.log('FFmpeg警告:', ffmpegStderr);
+        }
         
-        // 检查输出文件
         if (fs.existsSync(outputFile) && fs.statSync(outputFile).size > 0) {
+          console.log(`silk-wasm转换成功: ${outputFile}`);
           resolve();
         } else {
           reject(new Error('转换后的文件不存在或为空'));
@@ -721,15 +716,251 @@ function convertWithFfmpegDirect(inputFile, outputFile) {
         console.error('FFmpeg进程错误:', err);
         reject(err);
       });
+      
     } catch (e) {
       clearTimeout(timeoutId);
-      console.error('转换过程中发生异常:', e);
+      console.error('silk-wasm转换错误:', e);
       reject(e);
     }
   });
 }
 
-// 方法1：使用FFmpeg的concat demuxer合并MP3文件
+// 方法1: 使用silk2mp3直接转换
+function convertWithSilk2Mp3(inputFile, outputFile) {
+  return new Promise((resolve, reject) => {
+    const timeoutId = setTimeout(() => {
+      reject(new Error('命令执行超时'));
+    }, COMMAND_TIMEOUT);
+    
+    try {
+      if (!fs.existsSync(inputFile)) {
+        return reject(new Error(`输入文件不存在: ${inputFile}`));
+      }
+      
+      const stats = fs.statSync(inputFile);
+      if (stats.size === 0) {
+        return reject(new Error(`输入文件为空: ${inputFile}`));
+      }
+      
+      const outputDir = path.dirname(outputFile);
+      fs.ensureDirSync(outputDir);
+      
+      const silk2mp3Path = getSilk2Mp3Path();
+      console.log(`使用silk2mp3工具: ${silk2mp3Path}`);
+      
+      // silk2mp3 通常的用法: silk2mp3 input.silk output.mp3
+      const command = `"${silk2mp3Path}" "${inputFile}" "${outputFile}"`;
+      console.log('执行silk2mp3命令:', command);
+      
+      const childProcess = exec(command, (error, stdout, stderr) => {
+        clearTimeout(timeoutId);
+        
+        if (error) {
+          console.error('silk2mp3转换错误:', error.message);
+          console.error('stderr:', stderr);
+          return reject(error);
+        }
+        
+        console.log('silk2mp3输出:', stdout);
+        if (stderr) {
+          console.log('silk2mp3警告:', stderr);
+        }
+        
+        if (fs.existsSync(outputFile) && fs.statSync(outputFile).size > 0) {
+          console.log(`silk2mp3转换成功: ${outputFile}`);
+          resolve();
+        } else {
+          reject(new Error('转换后的文件不存在或为空'));
+        }
+      });
+      
+      childProcess.on('error', (err) => {
+        clearTimeout(timeoutId);
+        console.error('silk2mp3进程错误:', err);
+        reject(err);
+      });
+    } catch (e) {
+      clearTimeout(timeoutId);
+      reject(e);
+    }
+  });
+}
+
+function convertSilkToPcmToMp3(inputFile, outputFile) {
+  return new Promise((resolve, reject) => {
+    const timeoutId = setTimeout(() => {
+      reject(new Error('命令执行超时'));
+    }, COMMAND_TIMEOUT);
+    
+    try {
+      if (!fs.existsSync(inputFile)) {
+        return reject(new Error(`输入文件不存在: ${inputFile}`));
+      }
+      
+      const stats = fs.statSync(inputFile);
+      if (stats.size === 0) {
+        return reject(new Error(`输入文件为空: ${inputFile}`));
+      }
+      
+      const pcmFile = outputFile.replace('.mp3', '.pcm');
+      const outputDir = path.dirname(pcmFile);
+      fs.ensureDirSync(outputDir);
+      
+      const silkDecoderPath = getSilkDecoderPath();
+      const silkCommand = `"${silkDecoderPath}" "${inputFile}" "${pcmFile}"`;
+      
+      const silkProcess = exec(silkCommand, (silkError, silkStdout, silkStderr) => {
+        if (silkError) {
+          clearTimeout(timeoutId);
+          return reject(silkError);
+        }
+        
+        const ffmpegPath = getFfmpegPath();
+        const ffmpegCommand = `"${ffmpegPath}" -f s16le -ar 24000 -ac 1 -i "${pcmFile}" -acodec libmp3lame -q:a 2 "${outputFile}"`;
+        
+        const ffmpegProcess = exec(ffmpegCommand, (ffmpegError, ffmpegStdout, ffmpegStderr) => {
+          try {
+            fs.removeSync(pcmFile);
+          } catch (e) {
+            console.error('删除临时PCM文件失败:', e);
+          }
+          
+          clearTimeout(timeoutId);
+          
+          if (ffmpegError) {
+            return reject(ffmpegError);
+          }
+          
+          if (fs.existsSync(outputFile) && fs.statSync(outputFile).size > 0) {
+            resolve();
+          } else {
+            reject(new Error('转换后的文件不存在或为空'));
+          }
+        });
+        
+        ffmpegProcess.on('error', (err) => {
+          clearTimeout(timeoutId);
+          reject(err);
+        });
+      });
+      
+      silkProcess.on('error', (err) => {
+        clearTimeout(timeoutId);
+        reject(err);
+      });
+    } catch (e) {
+      clearTimeout(timeoutId);
+      reject(e);
+    }
+  });
+}
+
+function convertSilkToWavToMp3(inputFile, outputFile) {
+  return new Promise((resolve, reject) => {
+    const timeoutId = setTimeout(() => {
+      reject(new Error('命令执行超时'));
+    }, COMMAND_TIMEOUT);
+    
+    try {
+      if (!fs.existsSync(inputFile)) {
+        return reject(new Error(`输入文件不存在: ${inputFile}`));
+      }
+      
+      const wavFile = outputFile.replace('.mp3', '.wav');
+      const outputDir = path.dirname(wavFile);
+      fs.ensureDirSync(outputDir);
+      
+      const silkDecoderPath = getSilkDecoderPath();
+      const silkCommand = `"${silkDecoderPath}" "${inputFile}" "${wavFile}" -d`;
+      
+      const silkProcess = exec(silkCommand, (silkError, silkStdout, silkStderr) => {
+        if (silkError) {
+          clearTimeout(timeoutId);
+          return reject(silkError);
+        }
+        
+        const ffmpegPath = getFfmpegPath();
+        const ffmpegCommand = `"${ffmpegPath}" -i "${wavFile}" -acodec libmp3lame -q:a 2 "${outputFile}"`;
+        
+        const ffmpegProcess = exec(ffmpegCommand, (ffmpegError, ffmpegStdout, ffmpegStderr) => {
+          try {
+            fs.removeSync(wavFile);
+          } catch (e) {
+            console.error('删除临时WAV文件失败:', e);
+          }
+          
+          clearTimeout(timeoutId);
+          
+          if (ffmpegError) {
+            return reject(ffmpegError);
+          }
+          
+          if (fs.existsSync(outputFile) && fs.statSync(outputFile).size > 0) {
+            resolve();
+          } else {
+            reject(new Error('转换后的文件不存在或为空'));
+          }
+        });
+        
+        ffmpegProcess.on('error', (err) => {
+          clearTimeout(timeoutId);
+          reject(err);
+        });
+      });
+      
+      silkProcess.on('error', (err) => {
+        clearTimeout(timeoutId);
+        reject(err);
+      });
+    } catch (e) {
+      clearTimeout(timeoutId);
+      reject(e);
+    }
+  });
+}
+
+function convertWithFfmpegDirect(inputFile, outputFile) {
+  return new Promise((resolve, reject) => {
+    const timeoutId = setTimeout(() => {
+      reject(new Error('命令执行超时'));
+    }, COMMAND_TIMEOUT);
+    
+    try {
+      if (!fs.existsSync(inputFile)) {
+        return reject(new Error(`输入文件不存在: ${inputFile}`));
+      }
+      
+      const outputDir = path.dirname(outputFile);
+      fs.ensureDirSync(outputDir);
+      
+      const ffmpegPath = getFfmpegPath();
+      const ffmpegCommand = `"${ffmpegPath}" -i "${inputFile}" -acodec libmp3lame -q:a 2 "${outputFile}"`;
+      
+      const ffmpegProcess = exec(ffmpegCommand, (ffmpegError, ffmpegStdout, ffmpegStderr) => {
+        clearTimeout(timeoutId);
+        
+        if (ffmpegError) {
+          return reject(ffmpegError);
+        }
+        
+        if (fs.existsSync(outputFile) && fs.statSync(outputFile).size > 0) {
+          resolve();
+        } else {
+          reject(new Error('转换后的文件不存在或为空'));
+        }
+      });
+      
+      ffmpegProcess.on('error', (err) => {
+        clearTimeout(timeoutId);
+        reject(err);
+      });
+    } catch (e) {
+      clearTimeout(timeoutId);
+      reject(e);
+    }
+  });
+}
+
 function mergeMp3FilesWithConcat(inputFiles, outputFile) {
   return new Promise((resolve, reject) => {
     const timeoutId = setTimeout(() => {
@@ -737,47 +968,30 @@ function mergeMp3FilesWithConcat(inputFiles, outputFile) {
     }, COMMAND_TIMEOUT);
     
     try {
-      console.log('使用concat demuxer合并文件');
-      
-      // 确保临时目录存在
       const tempDir = path.join(__dirname, 'temp');
       fs.ensureDirSync(tempDir);
-      console.log('临时目录已创建:', tempDir);
       
-      // 创建一个文本文件，列出所有要合并的文件
       const listFile = path.join(tempDir, `filelist-${Date.now()}.txt`);
       const fileList = inputFiles.map(file => `file '${file.replace(/\\/g, '/')}'`).join('\n');
       fs.writeFileSync(listFile, fileList);
-      console.log('文件列表已创建:', listFile);
-      console.log('文件列表内容:', fileList);
       
       const ffmpegPath = getFfmpegPath();
-      // 使用FFmpeg的concat demuxer
       const command = `"${ffmpegPath}" -f concat -safe 0 -i "${listFile}" -c copy "${outputFile}"`;
-      console.log('执行ffmpeg命令:', command);
       
       const childProcess = exec(command, (error, stdout, stderr) => {
         clearTimeout(timeoutId);
         
-        // 删除临时文件列表
         try {
           fs.removeSync(listFile);
-          console.log('临时文件列表已删除');
         } catch (e) {
           console.error('删除临时文件列表失败:', e);
         }
         
         if (error) {
-          console.error(`合并MP3文件错误: ${error}`);
-          console.error(`FFmpeg输出: ${stderr}`);
           return reject(error);
         }
         
-        console.log(`FFmpeg输出: ${stdout}`);
-        
-        // 检查输出文件
         if (fs.existsSync(outputFile) && fs.statSync(outputFile).size > 0) {
-          console.log('MP3文件合并完成');
           resolve();
         } else {
           reject(new Error('合并后的文件不存在或为空'));
@@ -786,18 +1000,15 @@ function mergeMp3FilesWithConcat(inputFiles, outputFile) {
       
       childProcess.on('error', (err) => {
         clearTimeout(timeoutId);
-        console.error('FFmpeg进程错误:', err);
         reject(err);
       });
     } catch (e) {
       clearTimeout(timeoutId);
-      console.error('合并过程中发生异常:', e);
       reject(e);
     }
   });
 }
 
-// 方法2：使用fluent-ffmpeg合并MP3文件
 function mergeMp3FilesWithFfmpeg(inputFiles, outputFile) {
   return new Promise((resolve, reject) => {
     const timeoutId = setTimeout(() => {
@@ -805,37 +1016,24 @@ function mergeMp3FilesWithFfmpeg(inputFiles, outputFile) {
     }, COMMAND_TIMEOUT);
     
     try {
-      console.log('使用fluent-ffmpeg合并文件');
-      
-      // 确保临时目录存在
       const tempDir = path.join(__dirname, 'temp');
       fs.ensureDirSync(tempDir);
-      console.log('临时目录已创建:', tempDir);
       
       let command = ffmpeg();
       
-      // 添加所有输入文件
       inputFiles.forEach(file => {
-        console.log('添加输入文件:', file);
         command = command.addInput(file);
       });
       
-      // 合并文件
       command
-        .on('start', cmdline => {
-          console.log('FFmpeg命令:', cmdline);
-        })
         .on('error', (err) => {
           clearTimeout(timeoutId);
-          console.error('合并MP3文件错误:', err);
           reject(err);
         })
         .on('end', () => {
           clearTimeout(timeoutId);
           
-          // 检查输出文件
           if (fs.existsSync(outputFile) && fs.statSync(outputFile).size > 0) {
-            console.log('MP3文件合并完成');
             resolve();
           } else {
             reject(new Error('合并后的文件不存在或为空'));
@@ -844,31 +1042,85 @@ function mergeMp3FilesWithFfmpeg(inputFiles, outputFile) {
         .mergeToFile(outputFile, tempDir);
     } catch (e) {
       clearTimeout(timeoutId);
-      console.error('合并过程中发生异常:', e);
       reject(e);
     }
   });
 }
 
-// 启动服务器
-app.listen(PORT, () => {
-  console.log(`服务器运行在端口 ${PORT}`);
-  
-  // 检查必要的工具是否可用
-  try {
-    console.log('检查silk_v3_decoder是否可用...');
-    const silkPath = getSilkDecoderPath();
-    console.log('silk_v3_decoder路径:', silkPath);
-  } catch (e) {
-    console.error('警告: silk_v3_decoder可能不可用:', e.message);
+// 自动下载 Linux 工具（如果需要）
+async function ensureLinuxTools() {
+  if (process.platform === 'linux') {
+    const linuxDecoderPath = path.join(__dirname, 'silk_v3_decoder_linux');
+    
+    if (!fs.existsSync(linuxDecoderPath)) {
+      console.log('Linux 环境检测到，正在下载 silk_v3_decoder_linux...');
+      
+      try {
+        const https = require('https');
+        const url = 'https://github.com/kn007/silk-v3-decoder/releases/download/v1.0.0/silk_v3_decoder_linux';
+        
+        const file = fs.createWriteStream(linuxDecoderPath);
+        
+        await new Promise((resolve, reject) => {
+          https.get(url, (response) => {
+            response.pipe(file);
+            
+            file.on('finish', () => {
+              file.close();
+              // 设置执行权限
+              try {
+                fs.chmodSync(linuxDecoderPath, '755');
+                console.log('silk_v3_decoder_linux 下载并设置权限成功');
+                resolve();
+              } catch (chmodErr) {
+                console.error('设置执行权限失败:', chmodErr);
+                reject(chmodErr);
+              }
+            });
+            
+            file.on('error', (err) => {
+              fs.unlinkSync(linuxDecoderPath);
+              reject(err);
+            });
+          }).on('error', (err) => {
+            reject(err);
+          });
+        });
+        
+      } catch (error) {
+        console.error('下载 silk_v3_decoder_linux 失败:', error.message);
+        console.log('将尝试使用其他转换方法');
+      }
+    } else {
+      console.log('silk_v3_decoder_linux 已存在');
+      // 确保有执行权限
+      try {
+        fs.chmodSync(linuxDecoderPath, '755');
+      } catch (e) {
+        console.error('设置执行权限失败:', e);
+      }
+    }
   }
+}
+
+// 启动服务器
+app.listen(PORT, async () => {
+  console.log(`服务器运行在端口 ${PORT}`);
+  console.log(`环境: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`前端URL: ${FRONTEND_URL}`);
+  console.log(`平台: ${process.platform}`);
   
+  // 确保 Linux 工具可用
+  await ensureLinuxTools();
+  
+  // 检查工具可用性
   try {
-    console.log('检查ffmpeg是否可用...');
+    const silkPath = getSilkDecoderPath();
     const ffmpegPath = getFfmpegPath();
+    console.log('silk_v3_decoder路径:', silkPath);
     console.log('ffmpeg路径:', ffmpegPath);
   } catch (e) {
-    console.error('警告: ffmpeg可能不可用:', e.message);
+    console.error('工具检查失败:', e.message);
   }
   
   // 确保必要的目录存在
@@ -877,4 +1129,7 @@ app.listen(PORT, () => {
     fs.ensureDirSync(dirPath);
     console.log(`目录已创建/确认: ${dirPath}`);
   });
+  
+  // 执行一次清理
+  cleanupOldFiles();
 });
